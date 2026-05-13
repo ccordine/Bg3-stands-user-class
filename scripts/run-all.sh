@@ -41,6 +41,8 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 cd "$MOD_ROOT"
+STAGE_DIR="$MOD_ROOT/dist/.build_stage.${USER:-user}"
+mkdir -p "$STAGE_DIR"
 
 echo "[1/5] Static validation"
 ./scripts/validate_static.py
@@ -69,23 +71,23 @@ if [[ $BUILD_RC -eq 0 && -f "$MOD_ROOT/dist/StandPrototype.pak" ]]; then
 fi
 
 echo "[3/5] Packaging failed (exit $BUILD_RC). Preserving staged layout."
-mkdir -p dist/.build_stage/Mods/StandPrototype
-cp -f meta.lsx dist/.build_stage/Mods/StandPrototype/meta.lsx
+mkdir -p "$STAGE_DIR/Mods/StandPrototype"
+cp -f meta.lsx "$STAGE_DIR/Mods/StandPrototype/meta.lsx"
 if [[ -d Public ]]; then
-  rm -rf dist/.build_stage/Public
-  cp -a Public dist/.build_stage/Public
+  rm -rf "$STAGE_DIR/Public" 2>/dev/null || true
+  cp -a Public "$STAGE_DIR/Public"
 fi
 if [[ -d ScriptExtender ]]; then
-  rm -rf dist/.build_stage/ScriptExtender
-  cp -a ScriptExtender dist/.build_stage/ScriptExtender
+  rm -rf "$STAGE_DIR/ScriptExtender" 2>/dev/null || true
+  cp -a ScriptExtender "$STAGE_DIR/ScriptExtender"
 fi
 if [[ -d Assets ]]; then
-  rm -rf dist/.build_stage/Assets
-  cp -a Assets dist/.build_stage/Assets
+  rm -rf "$STAGE_DIR/Assets" 2>/dev/null || true
+  cp -a Assets "$STAGE_DIR/Assets"
 fi
 if [[ -d Localization ]]; then
-  rm -rf dist/.build_stage/Localization
-  cp -a Localization dist/.build_stage/Localization
+  rm -rf "$STAGE_DIR/Localization" 2>/dev/null || true
+  cp -a Localization "$STAGE_DIR/Localization"
 fi
 
 if [[ $NO_INSTALL -eq 0 ]]; then
@@ -102,14 +104,14 @@ fi
 echo "[5/5] Modsettings snippet"
 ./scripts/print_modsettings_snippet.sh
 
-if [[ -d "$MOD_ROOT/dist/.build_stage" ]]; then
+if [[ -d "$STAGE_DIR" ]]; then
   if [[ $ALLOW_STAGED -eq 1 ]]; then
     echo "PARTIAL: staging ready, .pak blocked by Divine"
-    echo "Staged path: $MOD_ROOT/dist/.build_stage"
+    echo "Staged path: $STAGE_DIR"
     exit 0
   fi
   echo "PARTIAL: staging ready, .pak blocked by Divine"
-  echo "Staged path: $MOD_ROOT/dist/.build_stage"
+  echo "Staged path: $STAGE_DIR"
   exit 2
 fi
 

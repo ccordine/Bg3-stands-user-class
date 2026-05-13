@@ -92,6 +92,7 @@ MOD_ROOT="$(realpath "$MOD_ROOT")"
 OUT_DIR="$(realpath "$OUT_DIR")"
 PAK_PATH="$OUT_DIR/${MOD_NAME}.pak"
 STAGE_DIR="$OUT_DIR/.build_stage"
+STAGE_DIR_FALLBACK="$OUT_DIR/.build_stage.${USER:-user}"
 
 if [[ -z "$GAME_DATA" ]]; then
   CANDIDATES=(
@@ -121,8 +122,27 @@ if [[ $PRINT_CONFIG -eq 1 ]]; then
 fi
 
 rm -f "$PAK_PATH"
-rm -rf "$STAGE_DIR"
-mkdir -p "$STAGE_DIR/Mods/$MOD_NAME"
+
+prepare_stage_dir() {
+  local candidate="$1"
+  if rm -rf "$candidate" 2>/dev/null; then
+    mkdir -p "$candidate/Mods/$MOD_NAME" 2>/dev/null && return 0
+  fi
+  return 1
+}
+
+if ! prepare_stage_dir "$STAGE_DIR"; then
+  echo "Warning: default stage dir not writable: $STAGE_DIR" >&2
+  if prepare_stage_dir "$STAGE_DIR_FALLBACK"; then
+    STAGE_DIR="$STAGE_DIR_FALLBACK"
+    echo "Using fallback stage dir: $STAGE_DIR" >&2
+  else
+    TMP_STAGE="$(mktemp -d "${TMPDIR:-/tmp}/${MOD_NAME}.build_stage.XXXXXX")"
+    STAGE_DIR="$TMP_STAGE"
+    mkdir -p "$STAGE_DIR/Mods/$MOD_NAME"
+    echo "Using temp stage dir: $STAGE_DIR" >&2
+  fi
+fi
 
 # Build from a canonical BG3 package layout:
 #   Mods/<ModName>/meta.lsx

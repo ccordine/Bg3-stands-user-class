@@ -3,7 +3,7 @@ import re
 import sys
 from pathlib import Path
 
-root = Path('/workspace/baulders-gate-mods/StandPrototype')
+root = Path(__file__).resolve().parent.parent
 
 checks = []
 warnings = []
@@ -126,7 +126,8 @@ joined = '\n'.join(text_blobs)
 ok('No active feat unlock references', 'Feat_StandUserBase' not in joined and 'Feat_Arcana_TheStar' not in joined)
 
 # dist/.build_stage not source of truth
-ok('Build script rebuilds and does not trust existing dist/.build_stage', 'rm -rf "$STAGE_DIR"' in bs and 'cp -a "$MOD_ROOT/Public" "$STAGE_DIR/Public"' in bs)
+ok('Build script rebuilds and does not trust existing stage dir',
+   ('prepare_stage_dir' in bs or 'rm -rf "$STAGE_DIR"' in bs) and 'cp -a "$MOD_ROOT/Public" "$STAGE_DIR/Public"' in bs)
 
 # Runtime-uncertain warning: direct SelectSkills selector usage
 if 'SelectSkills(2,Acrobatics,Athletics,Insight,Intimidation,Perception,SleightOfHand,Stealth)' in p:
