@@ -1,0 +1,29 @@
+# Build artifacts
+dist/
+*.pak
+
+# Local env/config
+.env
+.env.*
+!.env.example
+
+# Tooling caches and local downloads
+tmp/
+.cache/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Python/node leftovers (if any helper tooling gets added)
+__pycache__/
+*.pyc
+node_modules/

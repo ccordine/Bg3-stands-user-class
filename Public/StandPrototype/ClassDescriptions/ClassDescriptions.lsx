@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<save>
+  <version major="4" minor="0" revision="9" build="331" />
+  <region id="ClassDescriptions">
+    <node id="root">
+      <children>
+        <node id="ClassDescription">
+          <attribute id="ClassUUID" type="FixedString" value="7a23b113-0a85-4f8f-86ca-7f88f5de9c61" />
+          <attribute id="Description" type="TranslatedString" handle="h7fce70f8g22f4g4818ga68ag92436df4d001;A spiritual close-range martial class. Stand Users rely on presence, reflexes, and force of will rather than armor. At level 3, choose an Arcana path to manifest a combat Stand with linked-risk tether mechanics." version="1" />
+          <attribute id="DisplayName" type="TranslatedString" handle="h7fce70f8g22f4g4818ga68ag92436df4d002" version="1" />
+          <attribute id="Name" type="LSString" value="StandUser" />
+          <attribute id="PrimaryAbility" type="uint8" value="1" />
+          <attribute id="ProgressionTableUUID" type="guid" value="b1903c22-7b00-4efa-a6b8-3cce0fca5a71" />
+          <attribute id="Skills" type="LSString" value="Acrobatics,Athletics,Insight,Intimidation,Perception,SleightOfHand,Stealth" />
+          <attribute id="SpellCastingAbility" type="uint8" value="4" />
+        </node>
+        <node id="ClassDescription">
+          <attribute id="ClassUUID" type="FixedString" value="7c845558-3c02-4b49-928d-b1bc6e7301af" />
+          <attribute id="Description" type="TranslatedString" handle="h7fce70f8g22f4g4818ga68ag92436df4d001;A spiritual close-range martial class. Stand Users rely on presence, reflexes, and force of will rather than armor. At level 3, choose an Arcana path to manifest a combat Stand with linked-risk tether mechanics." version="1" />
+          <attribute id="DisplayName" type="TranslatedString" handle="h7fce70f8g22f4g4818ga68ag92436df4d002" version="1" />
+          <attribute id="IsMulticlass" type="bool" value="true" />
+          <attribute id="Name" type="LSString" value="StandUser" />
+          <attribute id="PrimaryAbility" type="uint8" value="1" />
+          <attribute id="ProgressionTableUUID" type="guid" value="b1903c22-7b00-4efa-a6b8-3cce0fca5a71" />
+          <attribute id="Skills" type="LSString" value="Acrobatics,Athletics,Insight,Intimidation,Perception,SleightOfHand,Stealth" />
+          <attribute id="SpellCastingAbility" type="uint8" value="4" />
+        </node>
+        <node id="ClassDescription">
+          <attribute id="ClassUUID" type="FixedString" value="ce55f9d6-1dd2-42bb-8b2f-e42eb2a87c12" />
+          <attribute id="Description" type="TranslatedString" handle="h7fce70f8g22f4g4818ga68ag92436df4d003" version="1" />
+          <attribute id="DisplayName" type="TranslatedString" handle="h7fce70f8g22f4g4818ga68ag92436df4d004" version="1" />
+          <attribute id="Name" type="LSString" value="TheStar" />
+          <attribute id="ParentGuid" type="guid" value="7a23b113-0a85-4f8f-86ca-7f88f5de9c61" />
+          <attribute id="ProgressionTableUUID" type="guid" value="8a36b3b6-9d0f-4f87-9ec5-c5b87fd7ab06" />
+        </node>
+      </children>
+    </node>
+  </region>
+</save>
