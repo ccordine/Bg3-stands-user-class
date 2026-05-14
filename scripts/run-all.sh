@@ -58,7 +58,7 @@ if [[ $BUILD_RC -eq 0 && -f "$MOD_ROOT/dist/StandPrototype.pak" ]]; then
   if [[ $NO_INSTALL -eq 0 ]]; then
     echo "[4/5] Install"
     if [[ -n "${BG3_DATA_ROOT:-}" && -d "${BG3_DATA_ROOT}/Data" ]]; then
-      ./scripts/install.sh --symlink
+      ./scripts/install.sh
     else
       echo "Skipping install: BG3_DATA_ROOT missing or not mounted with Data/."
     fi
@@ -90,16 +90,7 @@ if [[ -d Localization ]]; then
   cp -a Localization "$STAGE_DIR/Localization"
 fi
 
-if [[ $NO_INSTALL -eq 0 ]]; then
-  echo "[4/5] Install"
-  if [[ -n "${BG3_DATA_ROOT:-}" && -d "${BG3_DATA_ROOT}/Data" ]]; then
-    ./scripts/install.sh --symlink
-  else
-    echo "Skipping install: BG3_DATA_ROOT missing or not mounted with Data/."
-  fi
-else
-  echo "[4/5] Install skipped (--no-install)"
-fi
+echo "[4/5] Install skipped: package build failed, no .pak to install."
 
 echo "[5/5] Modsettings snippet"
 ./scripts/print_modsettings_snippet.sh

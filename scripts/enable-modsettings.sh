@@ -9,14 +9,38 @@ MOD_NAME="StandPrototype"
 MOD_UUID="4dd59dfc-8cd2-4b85-a19d-8f74a89fd8ce"
 MOD_VERSION64="36028797018963968"
 
-PROFILE_DIR="${BG3_PROFILE_DIR:-$HOME/.local/share/Larian Studios/Baldur's Gate 3/PlayerProfiles/Public}"
-MODSETTINGS_PATH="${BG3_MODSETTINGS_PATH:-$PROFILE_DIR/modsettings.lsx}"
+PROFILE_DIR=""
+MODSETTINGS_PATH=""
 
 if [[ -f "$ENV_FILE" ]]; then
   set -a
   # shellcheck disable=SC1090
   source "$ENV_FILE"
   set +a
+fi
+
+PROFILE_DIR="${BG3_PROFILE_DIR:-}"
+if [[ -z "$PROFILE_DIR" ]]; then
+  PROFILE_CANDIDATES=(
+    "$HOME/.steam/steam/steamapps/compatdata/1086940/pfx/drive_c/users/steamuser/AppData/Local/Larian Studios/Baldur's Gate 3/PlayerProfiles/Public"
+    "$HOME/.local/share/Steam/steamapps/compatdata/1086940/pfx/drive_c/users/steamuser/AppData/Local/Larian Studios/Baldur's Gate 3/PlayerProfiles/Public"
+    "$HOME/.local/share/Larian Studios/Baldur's Gate 3/PlayerProfiles/Public"
+  )
+  for p in "${PROFILE_CANDIDATES[@]}"; do
+    if [[ -d "$p" ]]; then
+      PROFILE_DIR="$p"
+      break
+    fi
+  done
+fi
+
+if [[ -z "$PROFILE_DIR" ]]; then
+  PROFILE_DIR="$HOME/.local/share/Larian Studios/Baldur's Gate 3/PlayerProfiles/Public"
+fi
+
+MODSETTINGS_PATH="${BG3_MODSETTINGS_PATH:-}"
+if [[ -z "$MODSETTINGS_PATH" ]]; then
+  MODSETTINGS_PATH="$PROFILE_DIR/modsettings.lsx"
 fi
 
 if [[ ! -f "$MODSETTINGS_PATH" ]]; then
@@ -47,17 +71,32 @@ def find_node_by_id(parent, node_id):
             return n
     return None
 
+def ensure_children(node):
+    children = node.find("children")
+    if children is None:
+        children = ET.SubElement(node, "children")
+    return children
+
 def attr_value(node, attr_id):
     for a in node.findall("attribute"):
         if a.attrib.get("id") == attr_id:
             return a.attrib.get("value")
     return None
 
-mods_node = find_node_by_id(root, "Mods")
-modorder_node = find_node_by_id(root, "ModOrder")
+root_node = find_node_by_id(root, "root")
+if root_node is None:
+    raise SystemExit("FATAL: Could not find root node in modsettings.lsx")
+root_children = ensure_children(root_node)
 
-if mods_node is None or modorder_node is None:
-    raise SystemExit("FATAL: Could not find Mods/ModOrder nodes in modsettings.lsx")
+mods_node = find_node_by_id(root, "Mods")
+if mods_node is None:
+    mods_node = ET.SubElement(root_children, "node", {"id": "Mods"})
+mods_children = ensure_children(mods_node)
+
+modorder_node = find_node_by_id(root, "ModOrder")
+if modorder_node is None:
+    modorder_node = ET.SubElement(root_children, "node", {"id": "ModOrder"})
+modorder_children = ensure_children(modorder_node)
 
 def has_module_uuid(node, uuid):
     for child in node.findall("node"):
@@ -76,14 +115,14 @@ def has_shortdesc_uuid(node, uuid):
             return True
     return False
 
-if not has_module_uuid(modorder_node, mod_uuid):
-    mod_entry = ET.SubElement(modorder_node, "node", {"id": "Module"})
+if not has_module_uuid(modorder_children, mod_uuid):
+    mod_entry = ET.SubElement(modorder_children, "node", {"id": "Module"})
     ET.SubElement(mod_entry, "attribute", {
         "id": "UUID", "type": "FixedString", "value": mod_uuid
     })
 
-if not has_shortdesc_uuid(mods_node, mod_uuid):
-    short = ET.SubElement(mods_node, "node", {"id": "ModuleShortDesc"})
+if not has_shortdesc_uuid(mods_children, mod_uuid):
+    short = ET.SubElement(mods_children, "node", {"id": "ModuleShortDesc"})
     ET.SubElement(short, "attribute", {"id": "Folder", "type": "LSString", "value": mod_name})
     ET.SubElement(short, "attribute", {"id": "MD5", "type": "LSString", "value": ""})
     ET.SubElement(short, "attribute", {"id": "Name", "type": "LSString", "value": mod_name})

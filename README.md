@@ -26,27 +26,26 @@ Still out of scope:
 `./scripts/setup-arch.sh`
 Single-command pipeline (recommended):
 `./scripts/run-all.sh`
-2. Install BG3 Script Extender.
-3. Run auto-install (Linux/Proton):
-`./scripts/install.sh --symlink`
-4. Build a `.pak`:
+2. Build a `.pak`:
 `./scripts/build.sh`
 If Linux `dll` backend fails with URI errors, provision Wine fallback runtime:
 `./scripts/setup-divine-wine-runtime.sh`
 Then build with:
 `WINEPREFIX=$HOME/.wine-divine DIVINE_BACKEND=wine ./scripts/build.sh`
-5. Ensure `ScriptExtender/Lua/BootstrapServer.lua` loads.
-6. Add/enable module entry in `modsettings.lsx` (helper snippet):
-`./scripts/print_modsettings_snippet.sh`
-7. Start a new character and select `StandUser` class.
-8. At level 3, choose `TheStar` subclass when prompted.
-9. Enter combat, cast `Manifest Stand`, and validate:
+3. Install package into BG3 `Mods`:
+`./scripts/install.sh --build-if-missing`
+4. Add/enable module entry in `modsettings.lsx`:
+`./scripts/enable-modsettings.sh`
+5. Optional but recommended for runtime Lua mechanics: install BG3 Script Extender and ensure `ScriptExtender/Lua/BootstrapServer.lua` loads.
+6. Start a new character and select `StandUser` class.
+7. At level 3, choose `TheStar` subclass when prompted.
+8. Enter combat, cast `Manifest Stand`, and validate:
 - Stand spawns and joins combat
 - Stand has Star abilities by level
 - Tether auto-return triggers when too far
 - Stand damage mirrors to user
 - Debilitating Stand statuses echo to user
-10. Cast `Withdraw Stand` to end link and despawn.
+9. Cast `Withdraw Stand` to end link and despawn.
 
 ## Current Ability Progression (The Star)
 - Early: Manifest, Withdraw, Barrage, Heavy Strike, Projectile Intercept

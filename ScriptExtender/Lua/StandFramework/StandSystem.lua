@@ -25,11 +25,16 @@ local function ensureTables()
 end
 
 local function getDistance(a, b)
-  local ax, ay, az = Osi.GetPosition(a)
-  local bx, by, bz = Osi.GetPosition(b)
-  if not ax or not bx then
+  if not a or not b or a == "" or b == "" then
     return 0.0
   end
+
+  local okA, ax, ay, az = pcall(Osi.GetPosition, a)
+  local okB, bx, by, bz = pcall(Osi.GetPosition, b)
+  if not okA or not okB or not ax or not bx then
+    return 0.0
+  end
+
   local dx = ax - bx
   local dy = ay - by
   local dz = az - bz
@@ -300,8 +305,8 @@ function StandSystem.Manifest(user)
 
   Osi.SetFaction(stand, Osi.GetFaction(user))
   Osi.SetCanJoinCombat(stand, 1)
-  Osi.AddToParty(stand, 0)
-  Osi.JoinCombat(stand, user)
+  pcall(Osi.AddPartyFollower, stand, user)
+  pcall(Osi.JoinCombat, stand, user)
 
   Osi.ApplyStatus(user, "STAND_USER_ACTIVE", -1, 1, stand)
   Osi.ApplyStatus(stand, "STAND_ENTITY_ACTIVE", -1, 1, user)
@@ -334,8 +339,9 @@ function StandSystem.Withdraw(user)
   if stand then
     StandSystem.StandOwner[stand] = nil
     Osi.RemoveStatus(stand, "STAND_ENTITY_ACTIVE")
-    Osi.LeaveCombat(stand)
-    Osi.Die(stand, 0, user)
+    pcall(Osi.RemovePartyFollower, stand, user)
+    pcall(Osi.LeaveCombat, stand)
+    pcall(Osi.Die, stand, 0, user)
   end
 
   Osi.RemoveStatus(user, "STAND_USER_ACTIVE")
@@ -358,8 +364,8 @@ function StandSystem.OnStandDamaged(stand, attacker, damage)
 
   local linked = math.floor(tonumber(damage or 0) * (state.damageLinkRatio or 1.0))
   if linked > 0 then
-    Osi.ApplyDamage(user, linked, state.damageLinkType or "Psychic", attacker)
-    Osi.ApplyStatus(user, "STAND_LINKED_DAMAGE_FEEDBACK", 3.0, 1, stand)
+    pcall(Osi.ApplyDamage, user, linked, state.damageLinkType or "Psychic", attacker)
+    pcall(Osi.ApplyStatus, user, "STAND_LINKED_DAMAGE_FEEDBACK", 3.0, 1, stand)
   end
 end
 
@@ -460,7 +466,7 @@ function StandSystem.OnStandHitTarget(attacker, defender)
   end
 
   if bonus > 0 then
-    Osi.ApplyDamage(defender, bonus, "Bludgeoning", attacker)
+    pcall(Osi.ApplyDamage, defender, bonus, "Bludgeoning", attacker)
   end
 end
 

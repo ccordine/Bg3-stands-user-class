@@ -170,23 +170,82 @@ if grep -q -- "--game-data-path" <<<"$DIVINE_HELP"; then
   HAS_GAME_DATA_FLAG=1
 fi
 
+to_wine_path() {
+  local p="$1"
+  if [[ "$p" == file://* ]]; then
+    p="${p#file://}"
+  fi
+  if [[ "$p" =~ ^[A-Za-z]:\\ ]]; then
+    printf '%s\n' "$p"
+    return 0
+  fi
+  p="${p//\//\\}"
+  printf 'Z:%s\n' "$p"
+}
+
+pak_has_payload() {
+  local p="$1"
+  [[ -f "$p" ]] || return 1
+  local size=0
+  size="$(stat -c%s "$p" 2>/dev/null || echo 0)"
+  [[ "$size" -gt 64 ]]
+}
+
 run_divine() {
   local src="$1"
   local dst="$2"
   local gd="${3:-}"
+  local src_arg="$src"
+  local dst_arg="$dst"
+  local gd_arg="$gd"
   local supports_game_flag=0
+
+  if [[ "${DIVINE_BACKEND:-auto}" == "wine" ]]; then
+    src_arg="$(to_wine_path "$src_arg")"
+    dst_arg="$(to_wine_path "$dst_arg")"
+    if [[ -n "$gd_arg" ]]; then
+      gd_arg="$(to_wine_path "$gd_arg")"
+    fi
+  fi
+
   if grep -qE -- '(^|[[:space:]])-g([[:space:]]|,|$)|--game' <<<"$DIVINE_HELP"; then
     supports_game_flag=1
   fi
 
-  local args=(-a create-package -s "$src" -d "$dst")
+  local args=(-a create-package -s "$src_arg" -d "$dst_arg")
   if [[ $supports_game_flag -eq 1 ]]; then
-    args=(-a create-package -g bg3 -s "$src" -d "$dst")
+    args=(-a create-package -g bg3 -s "$src_arg" -d "$dst_arg")
   fi
   if [[ -n "$gd" && $HAS_GAME_DATA_FLAG -eq 1 ]]; then
-    args+=("--game-data-path" "$gd")
+    args+=("--game-data-path" "$gd_arg")
   fi
   "$DIVINE_BIN" "${args[@]}"
+}
+
+run_divine_legacy_wine() {
+  local src="$1"
+  local dst="$2"
+  local gd="${3:-}"
+  local legacy_exe="$HOME/.local/share/lslib-tools/v1.19.3/Tools/Divine.exe"
+
+  command -v wine >/dev/null 2>&1 || return 1
+  [[ -f "$legacy_exe" ]] || return 1
+
+  local src_arg dst_arg gd_arg
+  src_arg="$(to_wine_path "$src")"
+  dst_arg="$(to_wine_path "$dst")"
+  gd_arg=""
+  if [[ -n "$gd" ]]; then
+    gd_arg="$(to_wine_path "$gd")"
+  fi
+
+  local args=(-a create-package -g bg3 -s "$src_arg" -d "$dst_arg")
+  if [[ -n "$gd_arg" && $HAS_GAME_DATA_FLAG -eq 1 ]]; then
+    args+=("--game-data-path" "$gd_arg")
+  fi
+
+  local wineprefix="${WINEPREFIX:-$HOME/.wine-divine}"
+  WINEPREFIX="$wineprefix" WINEDEBUG=-all wine "$legacy_exe" "${args[@]}"
 }
 
 to_file_uri() {
@@ -198,6 +257,10 @@ set +e
 run_divine "$STAGE_DIR" "$PAK_PATH" "${GAME_DATA:-}"
 FIRST_RC=$?
 set -e
+if [[ $FIRST_RC -eq 0 ]] && ! pak_has_payload "$PAK_PATH"; then
+  echo "Primary packaging produced an empty package; treating as failure." >&2
+  FIRST_RC=86
+fi
 if [[ $FIRST_RC -ne 0 ]]; then
   echo "Normal path invocation failed with exit code $FIRST_RC; retrying with file:// URI paths..." >&2
   SRC_URI="$(to_file_uri "$STAGE_DIR")"
@@ -210,6 +273,10 @@ if [[ $FIRST_RC -ne 0 ]]; then
   run_divine "$SRC_URI" "$DST_URI" "$GD_URI"
   SECOND_RC=$?
   set -e
+  if [[ $SECOND_RC -eq 0 ]] && ! pak_has_payload "$PAK_PATH"; then
+    echo "URI packaging produced an empty package; treating as failure." >&2
+    SECOND_RC=86
+  fi
   if [[ $SECOND_RC -ne 0 ]]; then
     echo "Fallback URI invocation also failed with exit code $SECOND_RC." >&2
     echo "Retrying once without game flag forcing (compat mode)..." >&2
@@ -220,15 +287,29 @@ if [[ $FIRST_RC -ne 0 ]]; then
     THIRD_RC=$?
     set -e
     DIVINE_HELP="$COMPAT_HELP"
+    if [[ $THIRD_RC -eq 0 ]] && ! pak_has_payload "$PAK_PATH"; then
+      echo "Compat packaging produced an empty package; treating as failure." >&2
+      THIRD_RC=86
+    fi
     if [[ $THIRD_RC -ne 0 ]]; then
       echo "Compat mode also failed with exit code $THIRD_RC." >&2
-      echo "Hint: this Divine build is likely incompatible with Linux path handling." >&2
-      exit $THIRD_RC
+      echo "Attempting legacy Wine fallback (Divine v1.19.3)..." >&2
+      set +e
+      run_divine_legacy_wine "$STAGE_DIR" "$PAK_PATH" "${GAME_DATA:-}"
+      LEGACY_RC=$?
+      set -e
+      if [[ $LEGACY_RC -eq 0 ]] && pak_has_payload "$PAK_PATH"; then
+        echo "Legacy Wine fallback succeeded." >&2
+      else
+        echo "Legacy Wine fallback failed with exit code ${LEGACY_RC:-1}." >&2
+        echo "Hint: this Divine build is likely incompatible with Linux path handling." >&2
+        exit "${LEGACY_RC:-1}"
+      fi
     fi
   fi
 fi
 
-if [[ ! -f "$PAK_PATH" ]]; then
+if [[ ! -f "$PAK_PATH" ]] || ! pak_has_payload "$PAK_PATH"; then
   echo "Build failed: expected output not found: $PAK_PATH" >&2
   exit 1
 fi
