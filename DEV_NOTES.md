@@ -56,8 +56,8 @@ Arcana definition supports:
 - Time Stop is implemented as a freeze-pulse placeholder spell chain.
 
 ## Runtime-uncertain audit items
-- Skill selection at class level 1 currently uses direct selector syntax:
-  - `SelectSkills(2,Acrobatics,Athletics,Insight,Intimidation,Perception,SleightOfHand,Stealth)`
+- Skill selection at class level 1 now uses BG3-style GUID skill list selector:
+  - `SelectSkills(0d9c53e6-52c4-4c21-89f5-60467f0d95c3,2)`
 - Status: `Partial` until in-game class creation confirms the skill picker appears correctly.
 - Required test:
   - New game -> choose `StandUser` -> verify exactly 2 skill picks are presented from the intended list.
@@ -69,14 +69,15 @@ Arcana definition supports:
   - Subclass choice is defined by `StandUser` progression at class level 3.
   - ASI/feat cadence is owned by base class levels 4/8/12.
   - `TheStar` level 12 grants capstone only (no duplicate `AllowImprovement`).
-  - Manifest/Withdraw remain progression-gated (no level 1 auto-manifest grant).
+  - Level 1 now grants full stand combat loop actions (Manifest/Withdraw/Barrage/Intercept/Reposition).
+  - Level 2 now grants resource loop + panic spike (`Combat Reading` + `Heavy Stand Blow`).
 - Runtime defensive cleanup implemented:
   - On turn start for Stand Users: stale stand/user link status cleanup.
   - On party join/session load: cleanup + progression refresh.
   - On death: forced withdraw and cleanup.
 - Runtime progression gating note:
   - Lua stand progression now uses `GetUserStandProgressLevel()` with class-feature passive checks
-    (`TheStar` 3/6/10/12 tiers) instead of raw total level.
+    (`TheStar` 3/6/10/12 tiers) and no longer falls back to raw total level before subclass.
 - Runtime checks still requiring in-game verification:
   - multiclass into StandUser from another class
   - multiclass out from StandUser

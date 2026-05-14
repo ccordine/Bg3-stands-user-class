@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<save>
+  <version major="4" minor="0" revision="9" build="331" />
+  <region id="SkillLists">
+    <node id="root">
+      <children>
+        <node id="SkillList">
+          <attribute id="Name" type="FixedString" value="Stand User Skill List" />
+          <attribute id="Skills" type="LSString" value="Acrobatics, Athletics, Insight, Intimidation, Perception, SleightOfHand, Stealth" />
+          <attribute id="UUID" type="guid" value="0d9c53e6-52c4-4c21-89f5-60467f0d95c3" />
+        </node>
+      </children>
+    </node>
+  </region>
+</save>

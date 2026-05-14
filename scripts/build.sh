@@ -169,6 +169,10 @@ HAS_GAME_DATA_FLAG=0
 if grep -q -- "--game-data-path" <<<"$DIVINE_HELP"; then
   HAS_GAME_DATA_FLAG=1
 fi
+GAME_FLAG_MANDATORY=0
+if grep -q -- "-g, --game" <<<"$DIVINE_HELP" && ! grep -q -- "-g, --game\\[optional\\]" <<<"$DIVINE_HELP"; then
+  GAME_FLAG_MANDATORY=1
+fi
 
 to_wine_path() {
   local p="$1"
@@ -191,10 +195,18 @@ pak_has_payload() {
   [[ "$size" -gt 64 ]]
 }
 
+LAST_DIVINE_OUTPUT=""
+LAST_DIVINE_RC=0
+
+is_relative_uri_exception() {
+  [[ "${LAST_DIVINE_OUTPUT:-}" == *"This operation is not supported for a relative URI."* ]]
+}
+
 run_divine() {
   local src="$1"
   local dst="$2"
   local gd="${3:-}"
+  local force_no_game="${4:-0}"
   local src_arg="$src"
   local dst_arg="$dst"
   local gd_arg="$gd"
@@ -208,7 +220,7 @@ run_divine() {
     fi
   fi
 
-  if grep -qE -- '(^|[[:space:]])-g([[:space:]]|,|$)|--game' <<<"$DIVINE_HELP"; then
+  if [[ "$force_no_game" -eq 0 ]] && grep -qE -- '(^|[[:space:]])-g([[:space:]]|,|$)|--game' <<<"$DIVINE_HELP"; then
     supports_game_flag=1
   fi
 
@@ -219,7 +231,20 @@ run_divine() {
   if [[ -n "$gd" && $HAS_GAME_DATA_FLAG -eq 1 ]]; then
     args+=("--game-data-path" "$gd_arg")
   fi
-  "$DIVINE_BIN" "${args[@]}"
+
+  local cmd_output=""
+  local rc=0
+  cmd_output="$("$DIVINE_BIN" "${args[@]}" 2>&1)"
+  rc=$?
+
+  LAST_DIVINE_OUTPUT="$cmd_output"
+  LAST_DIVINE_RC="$rc"
+
+  if [[ -n "$cmd_output" ]]; then
+    printf '%s\n' "$cmd_output" >&2
+  fi
+
+  return "$rc"
 }
 
 run_divine_legacy_wine() {
@@ -254,7 +279,7 @@ to_file_uri() {
 }
 
 set +e
-run_divine "$STAGE_DIR" "$PAK_PATH" "${GAME_DATA:-}"
+run_divine "$STAGE_DIR" "$PAK_PATH" "${GAME_DATA:-}" 0
 FIRST_RC=$?
 set -e
 if [[ $FIRST_RC -eq 0 ]] && ! pak_has_payload "$PAK_PATH"; then
@@ -262,37 +287,46 @@ if [[ $FIRST_RC -eq 0 ]] && ! pak_has_payload "$PAK_PATH"; then
   FIRST_RC=86
 fi
 if [[ $FIRST_RC -ne 0 ]]; then
-  echo "Normal path invocation failed with exit code $FIRST_RC; retrying with file:// URI paths..." >&2
-  SRC_URI="$(to_file_uri "$STAGE_DIR")"
-  DST_URI="$(to_file_uri "$PAK_PATH")"
-  GD_URI=""
-  if [[ -n "${GAME_DATA:-}" ]]; then
-    GD_URI="$(to_file_uri "$GAME_DATA")"
-  fi
-  set +e
-  run_divine "$SRC_URI" "$DST_URI" "$GD_URI"
-  SECOND_RC=$?
-  set -e
-  if [[ $SECOND_RC -eq 0 ]] && ! pak_has_payload "$PAK_PATH"; then
-    echo "URI packaging produced an empty package; treating as failure." >&2
-    SECOND_RC=86
+  SECOND_RC="$FIRST_RC"
+  if is_relative_uri_exception; then
+    echo "Detected Divine relative-URI runtime fault; skipping file:// URI retry." >&2
+  else
+    echo "Normal path invocation failed with exit code $FIRST_RC; retrying with file:// URI paths..." >&2
+    SRC_URI="$(to_file_uri "$STAGE_DIR")"
+    DST_URI="$(to_file_uri "$PAK_PATH")"
+    GD_URI=""
+    if [[ -n "${GAME_DATA:-}" ]]; then
+      GD_URI="$(to_file_uri "$GAME_DATA")"
+    fi
+    set +e
+    run_divine "$SRC_URI" "$DST_URI" "$GD_URI" 0
+    SECOND_RC=$?
+    set -e
+    if [[ $SECOND_RC -eq 0 ]] && ! pak_has_payload "$PAK_PATH"; then
+      echo "URI packaging produced an empty package; treating as failure." >&2
+      SECOND_RC=86
+    fi
   fi
   if [[ $SECOND_RC -ne 0 ]]; then
     echo "Fallback URI invocation also failed with exit code $SECOND_RC." >&2
-    echo "Retrying once without game flag forcing (compat mode)..." >&2
-    COMPAT_HELP="$DIVINE_HELP"
-    DIVINE_HELP="$(sed 's/-g bg3//g' <<<"$DIVINE_HELP")"
-    set +e
-    run_divine "$STAGE_DIR" "$PAK_PATH" "${GAME_DATA:-}"
-    THIRD_RC=$?
-    set -e
-    DIVINE_HELP="$COMPAT_HELP"
-    if [[ $THIRD_RC -eq 0 ]] && ! pak_has_payload "$PAK_PATH"; then
-      echo "Compat packaging produced an empty package; treating as failure." >&2
-      THIRD_RC=86
+    THIRD_RC="$SECOND_RC"
+    if [[ $GAME_FLAG_MANDATORY -eq 0 ]]; then
+      echo "Retrying once without game flag forcing (compat mode)..." >&2
+      set +e
+      run_divine "$STAGE_DIR" "$PAK_PATH" "${GAME_DATA:-}" 1
+      THIRD_RC=$?
+      set -e
+      if [[ $THIRD_RC -eq 0 ]] && ! pak_has_payload "$PAK_PATH"; then
+        echo "Compat packaging produced an empty package; treating as failure." >&2
+        THIRD_RC=86
+      fi
+      if [[ $THIRD_RC -ne 0 ]]; then
+        echo "Compat mode also failed with exit code $THIRD_RC." >&2
+      fi
+    else
+      echo "Compat mode skipped: installed Divine requires -g/--game." >&2
     fi
     if [[ $THIRD_RC -ne 0 ]]; then
-      echo "Compat mode also failed with exit code $THIRD_RC." >&2
       echo "Attempting legacy Wine fallback (Divine v1.19.3)..." >&2
       set +e
       run_divine_legacy_wine "$STAGE_DIR" "$PAK_PATH" "${GAME_DATA:-}"

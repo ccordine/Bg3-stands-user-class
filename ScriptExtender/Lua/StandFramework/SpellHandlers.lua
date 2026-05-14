@@ -15,6 +15,8 @@ Ext.Osiris.RegisterListener("UsingSpell", 5, "after", function(caster, spell, sp
     StandSystem.Manifest(caster)
   elseif spell == "Target_Stand_Withdraw" then
     StandSystem.Withdraw(caster)
+  elseif spell == "Target_Stand_Reposition" then
+    StandSystem.Reposition(caster)
   elseif spell == "Target_Stand_Intercept" then
     Osi.ApplyStatus(caster, "STAND_INTERCEPT_READY", 6.0, 1, caster)
   elseif spell == "Target_Stand_CombatPrediction" then

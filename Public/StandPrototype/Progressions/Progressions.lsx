@@ -7,35 +7,43 @@
         <!-- StandUser base class progression -->
         <node id="Progression">
           <attribute id="Level" type="uint8" value="1" />
-          <attribute id="Name" type="FixedString" value="StandUser" />
+          <attribute id="Name" type="LSString" value="StandUser" />
           <attribute id="Boosts" type="LSString" value="ProficiencyBonus(SavingThrow,Dexterity);ProficiencyBonus(SavingThrow,Wisdom);Proficiency(SimpleWeapons)" />
           <attribute id="PassivesAdded" type="LSString" value="STAND_USER_BASE_CLASS_PASSIVE;STAND_USER_MARTIAL_FOUNDATION;STAND_USER_TUTORIAL_LOOP;STAND_USER_UNARMORED_DISCIPLINE" />
           <attribute id="ProgressionType" type="uint8" value="0" />
-          <attribute id="Selectors" type="LSString" value="AddSpell(Target_Stand_Withdraw);SelectSkills(2,Acrobatics,Athletics,Insight,Intimidation,Perception,SleightOfHand,Stealth)" />
+          <attribute id="Selectors" type="LSString" value="AddSpells(a6f8f7c9-8475-46f5-9f7f-24f9dcb7c9a1);SelectSkills(0d9c53e6-52c4-4c21-89f5-60467f0d95c3,2)" />
           <attribute id="TableUUID" type="guid" value="b1903c22-7b00-4efa-a6b8-3cce0fca5a71" />
           <attribute id="UUID" type="guid" value="7131e16e-258e-450e-94a8-5ba06d752735" />
         </node>
         <node id="Progression">
           <attribute id="Level" type="uint8" value="2" />
-          <attribute id="Name" type="FixedString" value="StandUser" />
-          <attribute id="PassivesAdded" type="LSString" value="STAND_USER_DEFENSIVE_SENSE" />
+          <attribute id="Name" type="LSString" value="StandUser" />
+          <attribute id="PassivesAdded" type="LSString" value="STAND_USER_DEFENSIVE_SENSE;STAND_USER_SPIRIT_POOL_TIER1" />
           <attribute id="ProgressionType" type="uint8" value="0" />
-          <attribute id="Selectors" type="LSString" value="AddPassive(STAND_USER_SPIRIT_POOL_TIER1)" />
+          <attribute id="Selectors" type="LSString" value="AddSpells(5e6b735e-7f23-4a8a-b18f-a88f38ab7ec6)" />
           <attribute id="TableUUID" type="guid" value="b1903c22-7b00-4efa-a6b8-3cce0fca5a71" />
           <attribute id="UUID" type="guid" value="0f743e85-4a07-4f15-afad-65f1c4da52eb" />
         </node>
         <node id="Progression">
           <attribute id="Level" type="uint8" value="3" />
-          <attribute id="Name" type="FixedString" value="StandUser" />
+          <attribute id="Name" type="LSString" value="StandUser" />
           <attribute id="ProgressionType" type="uint8" value="0" />
-          <attribute id="SubClasses" type="LSString" value="TheStar" />
           <attribute id="TableUUID" type="guid" value="b1903c22-7b00-4efa-a6b8-3cce0fca5a71" />
           <attribute id="UUID" type="guid" value="24af74af-57ff-453a-8d78-c485f1b5de6d" />
+          <children>
+            <node id="SubClasses">
+              <children>
+                <node id="SubClass">
+                  <attribute id="Object" type="guid" value="ce55f9d6-1dd2-42bb-8b2f-e42eb2a87c12" />
+                </node>
+              </children>
+            </node>
+          </children>
         </node>
         <node id="Progression">
           <attribute id="Level" type="uint8" value="4" />
-          <attribute id="AllowImprovement" type="LSString" value="Yes" />
-          <attribute id="Name" type="FixedString" value="StandUser" />
+          <attribute id="AllowImprovement" type="bool" value="true" />
+          <attribute id="Name" type="LSString" value="StandUser" />
           <attribute id="PassivesAdded" type="LSString" value="STAND_USER_LEVEL4_DISCIPLINE_NOTE" />
           <attribute id="ProgressionType" type="uint8" value="0" />
           <attribute id="TableUUID" type="guid" value="b1903c22-7b00-4efa-a6b8-3cce0fca5a71" />
@@ -43,7 +51,7 @@
         </node>
         <node id="Progression">
           <attribute id="Level" type="uint8" value="5" />
-          <attribute id="Name" type="FixedString" value="StandUser" />
+          <attribute id="Name" type="LSString" value="StandUser" />
           <attribute id="PassivesAdded" type="LSString" value="STAND_USER_LEVEL5_DISCIPLINE_NOTE" />
           <attribute id="ProgressionType" type="uint8" value="0" />
           <attribute id="TableUUID" type="guid" value="b1903c22-7b00-4efa-a6b8-3cce0fca5a71" />
@@ -51,7 +59,7 @@
         </node>
         <node id="Progression">
           <attribute id="Level" type="uint8" value="7" />
-          <attribute id="Name" type="FixedString" value="StandUser" />
+          <attribute id="Name" type="LSString" value="StandUser" />
           <attribute id="PassivesAdded" type="LSString" value="STAND_USER_LEVEL7_DISCIPLINE_NOTE" />
           <attribute id="ProgressionType" type="uint8" value="0" />
           <attribute id="TableUUID" type="guid" value="b1903c22-7b00-4efa-a6b8-3cce0fca5a71" />
@@ -59,8 +67,8 @@
         </node>
         <node id="Progression">
           <attribute id="Level" type="uint8" value="8" />
-          <attribute id="AllowImprovement" type="LSString" value="Yes" />
-          <attribute id="Name" type="FixedString" value="StandUser" />
+          <attribute id="AllowImprovement" type="bool" value="true" />
+          <attribute id="Name" type="LSString" value="StandUser" />
           <attribute id="PassivesAdded" type="LSString" value="STAND_USER_LEVEL8_DISCIPLINE_NOTE" />
           <attribute id="ProgressionType" type="uint8" value="0" />
           <attribute id="TableUUID" type="guid" value="b1903c22-7b00-4efa-a6b8-3cce0fca5a71" />
@@ -68,7 +76,7 @@
         </node>
         <node id="Progression">
           <attribute id="Level" type="uint8" value="9" />
-          <attribute id="Name" type="FixedString" value="StandUser" />
+          <attribute id="Name" type="LSString" value="StandUser" />
           <attribute id="PassivesAdded" type="LSString" value="STAND_USER_LEVEL9_DISCIPLINE_NOTE" />
           <attribute id="ProgressionType" type="uint8" value="0" />
           <attribute id="TableUUID" type="guid" value="b1903c22-7b00-4efa-a6b8-3cce0fca5a71" />
@@ -76,7 +84,7 @@
         </node>
         <node id="Progression">
           <attribute id="Level" type="uint8" value="11" />
-          <attribute id="Name" type="FixedString" value="StandUser" />
+          <attribute id="Name" type="LSString" value="StandUser" />
           <attribute id="PassivesAdded" type="LSString" value="STAND_USER_LEVEL11_DISCIPLINE_NOTE" />
           <attribute id="ProgressionType" type="uint8" value="0" />
           <attribute id="TableUUID" type="guid" value="b1903c22-7b00-4efa-a6b8-3cce0fca5a71" />
@@ -84,8 +92,8 @@
         </node>
         <node id="Progression">
           <attribute id="Level" type="uint8" value="12" />
-          <attribute id="AllowImprovement" type="LSString" value="Yes" />
-          <attribute id="Name" type="FixedString" value="StandUser" />
+          <attribute id="AllowImprovement" type="bool" value="true" />
+          <attribute id="Name" type="LSString" value="StandUser" />
           <attribute id="PassivesAdded" type="LSString" value="STAND_USER_LEVEL12_DISCIPLINE_NOTE" />
           <attribute id="ProgressionType" type="uint8" value="0" />
           <attribute id="TableUUID" type="guid" value="b1903c22-7b00-4efa-a6b8-3cce0fca5a71" />
@@ -95,38 +103,37 @@
         <!-- TheStar subclass progression tied to StandUser table -->
         <node id="Progression">
           <attribute id="Level" type="uint8" value="3" />
-          <attribute id="Name" type="FixedString" value="TheStar" />
+          <attribute id="Name" type="LSString" value="TheStar" />
           <attribute id="PassivesAdded" type="LSString" value="STAND_SUBCLASS_THE_STAR;STAND_USER_THE_STAR_TIER_EARLY;STAND_FEATURE_PRETERNATURAL_PRECISION" />
-          <attribute id="ProgressionTableUUID" type="guid" value="b1903c22-7b00-4efa-a6b8-3cce0fca5a71" />
           <attribute id="ProgressionType" type="uint8" value="1" />
-          <attribute id="Selectors" type="LSString" value="AddSpell(Target_Stand_Manifest);AddSpell(Target_Stand_Withdraw);AddSpell(Target_Stand_Barrage);AddSpell(Target_Stand_HeavyPunch);AddSpell(Target_Stand_Intercept)" />
+          <attribute id="Selectors" type="LSString" value="AddSpells(95b74e7f-7449-4b18-8bd9-4415f793bcee)" />
           <attribute id="TableUUID" type="guid" value="8a36b3b6-9d0f-4f87-9ec5-c5b87fd7ab06" />
           <attribute id="UUID" type="guid" value="0ad7d2e1-6856-4578-8118-cde4a6f02a73" />
         </node>
         <node id="Progression">
           <attribute id="Level" type="uint8" value="6" />
-          <attribute id="Name" type="FixedString" value="TheStar" />
+          <attribute id="Name" type="LSString" value="TheStar" />
           <attribute id="PassivesAdded" type="LSString" value="STAND_USER_THE_STAR_TIER_MID;STAND_FEATURE_COMBAT_READING;STAND_FEATURE_BULLET_CATCH;STAND_FEATURE_UNYIELDING_PRESSURE" />
           <attribute id="ProgressionType" type="uint8" value="1" />
-          <attribute id="Selectors" type="LSString" value="AddSpell(Target_Stand_LeapCloser)" />
+          <attribute id="Selectors" type="LSString" value="AddSpells(a72e57d5-2206-4ea2-af9d-801721f5ef4e)" />
           <attribute id="TableUUID" type="guid" value="8a36b3b6-9d0f-4f87-9ec5-c5b87fd7ab06" />
           <attribute id="UUID" type="guid" value="6233a8ee-c84f-4424-b95f-6cbce534ee3a" />
         </node>
         <node id="Progression">
           <attribute id="Level" type="uint8" value="10" />
-          <attribute id="Name" type="FixedString" value="TheStar" />
+          <attribute id="Name" type="LSString" value="TheStar" />
           <attribute id="PassivesAdded" type="LSString" value="STAND_USER_THE_STAR_TIER_LATE;STAND_FEATURE_DOMINATING_PRESENCE" />
           <attribute id="ProgressionType" type="uint8" value="1" />
-          <attribute id="Selectors" type="LSString" value="AddSpell(Target_Stand_RushUltimate)" />
+          <attribute id="Selectors" type="LSString" value="AddSpells(749e0e73-932c-4dbf-84f5-6e7cf588fe8a)" />
           <attribute id="TableUUID" type="guid" value="8a36b3b6-9d0f-4f87-9ec5-c5b87fd7ab06" />
           <attribute id="UUID" type="guid" value="558d36a7-96b2-448e-a423-6599024a4208" />
         </node>
         <node id="Progression">
           <attribute id="Level" type="uint8" value="12" />
-          <attribute id="Name" type="FixedString" value="TheStar" />
+          <attribute id="Name" type="LSString" value="TheStar" />
           <attribute id="PassivesAdded" type="LSString" value="STAND_USER_THE_STAR_CAPSTONE" />
           <attribute id="ProgressionType" type="uint8" value="1" />
-          <attribute id="Selectors" type="LSString" value="AddSpell(Target_Stand_TimeStop)" />
+          <attribute id="Selectors" type="LSString" value="AddSpells(13c09535-b142-4538-8ac2-45d820359d8c)" />
           <attribute id="TableUUID" type="guid" value="8a36b3b6-9d0f-4f87-9ec5-c5b87fd7ab06" />
           <attribute id="UUID" type="guid" value="65d153df-4f17-4269-b149-6547ecc4d62b" />
         </node>

@@ -26,9 +26,15 @@ stand_def = root / 'ScriptExtender/Lua/StandFramework/StandDefinitions.lua'
 lua_system = root / 'ScriptExtender/Lua/StandFramework/StandSystem.lua'
 build_sh = root / 'scripts/build.sh'
 install_sh = root / 'scripts/install.sh'
+skill_list_file = root / 'Public/StandPrototype/Lists/SkillLists.lsx'
+spell_list_file = root / 'Public/StandPrototype/Lists/SpellLists.lsx'
+ability_preset_file = root / 'Public/StandPrototype/CharacterCreationPresets/AbilityDistributionPresets.lsx'
 
 ok('ClassDescriptions exists', class_file.exists(), str(class_file))
 ok('Progressions exists', prog_file.exists(), str(prog_file))
+ok('SkillLists exists', skill_list_file.exists(), str(skill_list_file))
+ok('SpellLists exists', spell_list_file.exists(), str(spell_list_file))
+ok('AbilityDistributionPresets exists', ability_preset_file.exists(), str(ability_preset_file))
 ok('Compiled localization file exists (.loca)',
    loca_bin_file.exists(),
    str(loca_bin_file))
@@ -49,6 +55,9 @@ sd = stand_def.read_text() if stand_def.exists() else ''
 ls = lua_system.read_text() if lua_system.exists() else ''
 bs = build_sh.read_text() if build_sh.exists() else ''
 ins = install_sh.read_text() if install_sh.exists() else ''
+sl = skill_list_file.read_text() if skill_list_file.exists() else ''
+spl = spell_list_file.read_text() if spell_list_file.exists() else ''
+ap = ability_preset_file.read_text() if ability_preset_file.exists() else ''
 
 # StandUser/TheStar records
 class_chunks = re.findall(r'<node id="ClassDescription">([\s\S]*?)</node>', c)
@@ -95,29 +104,30 @@ stand_user_uuid_match = re.search(r'id="UUID"\s+type="guid"\s+value="([^"]+)"', 
 the_star_parent_match = re.search(r'id="ParentGuid"\s+type="guid"\s+value="([^"]+)"', the_star_chunk)
 the_star_parent_link = bool(stand_user_uuid_match and the_star_parent_match and stand_user_uuid_match.group(1) == the_star_parent_match.group(1))
 ok('TheStar linked to StandUser parent guid', the_star_parent_link)
-ok('StandUser progression offers TheStar subclass', 'SubClasses" type="LSString" value="TheStar"' in p)
+ok('StandUser progression offers TheStar subclass',
+   'node id="SubClasses"' in p and 'ce55f9d6-1dd2-42bb-8b2f-e42eb2a87c12' in p)
 
 # Localization coverage for class/subclass display strings.
 for handle in (
-    'SPSTANDUSERDESC01',
-    'SPSTANDUSERNAME01',
-    'SPTHESTARDESC001',
-    'SPTHESTARNAME001',
-    'SPTHESTARSHORT001',
+    'h4f6dfd10g4ca5g4b2fg8c76g1df52ef9c8c1',
+    'h1a91b8c8g7d65g4c7eg9f1ag36640f1499ef',
+    'h84f4a14eg56e5g4ec8ga998g67fe7dcef8b3',
+    'h4e09986egf919g4605gb7f5g62cf7b2a6e54',
+    'h901ea68cg1717g46d6g8d95g396ab70c4cf6',
 ):
     ok(f'Localization contains handle {handle}', f'contentuid="{handle}"' in loc)
 
 # ASI cadence ownership and no subclass duplication at L12
 ok('StandUser has ASI cadence at class levels 4/8/12',
-   'Level" type="uint8" value="4"' in p and 'Level" type="uint8" value="8"' in p and 'Level" type="uint8" value="12"' in p and p.count('AllowImprovement" type="LSString" value="Yes"') >= 3)
+   'Level" type="uint8" value="4"' in p and 'Level" type="uint8" value="8"' in p and 'Level" type="uint8" value="12"' in p and p.count('AllowImprovement" type="bool" value="true"') >= 3)
 the_star_l12_chunk = ''
 for m in re.finditer(r'<node id="Progression">([\s\S]*?)</node>', p):
     chunk = m.group(1)
-    if 'Name" type="FixedString" value="TheStar"' in chunk and 'Level" type="uint8" value="12"' in chunk:
+    if 'value="TheStar"' in chunk and 'Level" type="uint8" value="12"' in chunk:
         the_star_l12_chunk = chunk
         break
 ok('TheStar level 12 does not duplicate ASI feat selection',
-   the_star_l12_chunk != '' and 'AllowImprovement" type="LSString" value="Yes"' not in the_star_l12_chunk)
+   the_star_l12_chunk != '' and 'AllowImprovement" type="bool" value="true"' not in the_star_l12_chunk)
 
 # Progression grant references exist
 passives_added = re.findall(r'PassivesAdded" type="LSString" value="([^"]*)"', p)
@@ -130,31 +140,85 @@ for val in selectors:
     for m in re.finditer(r'AddPassive\(([^\)]+)\)', val):
         all_passives.add(m.group(1).strip())
 
-all_spells = set()
+spell_list_map = {}
+for entry in re.findall(r'<node id="SpellList">([\s\S]*?)</node>', spl):
+    uuid_match = re.search(r'UUID"\s+type="guid"\s+value="([^"]+)"', entry)
+    spells_match = re.search(r'Spells"\s+type="LSString"\s+value="([^"]*)"', entry)
+    if not uuid_match:
+        continue
+    spells = []
+    if spells_match:
+        spells = [s.strip() for s in spells_match.group(1).split(';') if s.strip()]
+    spell_list_map[uuid_match.group(1)] = spells
+
+spell_list_uuids = set()
 for val in selectors:
-    for m in re.finditer(r'AddSpell\(([^\)]+)\)', val):
-        all_spells.add(m.group(1).strip())
+    for m in re.finditer(r'AddSpells\(([0-9a-fA-F-]+)', val):
+        spell_list_uuids.add(m.group(1).strip())
+
+all_spells = set()
+for uuid in spell_list_uuids:
+    for spell in spell_list_map.get(uuid, []):
+        all_spells.add(spell)
 
 missing_passives = [x for x in sorted(all_passives) if f'new entry "{x}" "PassiveData"' not in pa]
 missing_spells = [x for x in sorted(all_spells) if f'new entry "{x}" "SpellData"' not in sp]
 ok('All progression-referenced passives exist', not missing_passives, ', '.join(missing_passives) if missing_passives else 'ok')
 ok('All progression-referenced spells exist', not missing_spells, ', '.join(missing_spells) if missing_spells else 'ok')
+ok('All AddSpells selectors reference known SpellLists UUIDs',
+   spell_list_uuids.issubset(set(spell_list_map.keys())),
+   ', '.join(sorted(spell_list_uuids - set(spell_list_map.keys()))))
 
 # Manifest/Withdraw only via progression (not in base passive)
 base_passive_line = re.search(r'new entry "STAND_USER_BASE_CLASS_PASSIVE" "PassiveData"[\s\S]*?data "Properties" "([^"]*)"', pa)
 base_props = base_passive_line.group(1) if base_passive_line else ''
 ok('Base class passive does not directly grant Manifest/Withdraw', 'Target_Stand_Manifest' not in base_props and 'Target_Stand_Withdraw' not in base_props, base_props)
-ok('Manifest/Withdraw are progression granted', 'AddSpell(Target_Stand_Manifest)' in p and 'AddSpell(Target_Stand_Withdraw)' in p)
+ok('Manifest/Withdraw are progression granted via AddSpells list',
+   'AddSpells(a6f8f7c9-8475-46f5-9f7f-24f9dcb7c9a1)' in p)
 standuser_l1_chunk = ''
 for m in re.finditer(r'<node id="Progression">([\s\S]*?)</node>', p):
     chunk = m.group(1)
-    if 'Name" type="FixedString" value="StandUser"' in chunk and 'Level" type="uint8" value="1"' in chunk:
+    if 'value="StandUser"' in chunk and 'Level" type="uint8" value="1"' in chunk:
         standuser_l1_chunk = chunk
         break
-ok('No level-1 stand manifest grant in progression',
-   standuser_l1_chunk != '' and 'AddSpell(Target_Stand_Manifest)' not in standuser_l1_chunk)
+ok('Level 1 grants full stand combat loop actions',
+   standuser_l1_chunk != '' and 'AddSpells(a6f8f7c9-8475-46f5-9f7f-24f9dcb7c9a1)' in standuser_l1_chunk)
 
-# Lua not granting level 1 manifest
+stand_skill_list_uuid = '0d9c53e6-52c4-4c21-89f5-60467f0d95c3'
+ok('Level 1 uses GUID-based SelectSkills selector',
+   standuser_l1_chunk != '' and f'SelectSkills({stand_skill_list_uuid},2)' in standuser_l1_chunk)
+expected_skills = [
+    'Acrobatics',
+    'Athletics',
+    'Insight',
+    'Intimidation',
+    'Perception',
+    'SleightOfHand',
+    'Stealth',
+]
+skill_list_has_uuid = f'UUID" type="guid" value="{stand_skill_list_uuid}"' in sl
+skill_list_has_skills = all(skill in sl for skill in expected_skills)
+ok('Stand User skill list UUID exists with expected skills',
+   skill_list_has_uuid and skill_list_has_skills)
+
+standuser_l2_chunk = ''
+for m in re.finditer(r'<node id="Progression">([\s\S]*?)</node>', p):
+    chunk = m.group(1)
+    if 'value="StandUser"' in chunk and 'Level" type="uint8" value="2"' in chunk:
+        standuser_l2_chunk = chunk
+        break
+ok('Level 2 grants spirit resource loop + panic strike',
+   standuser_l2_chunk != ''
+   and 'AddSpells(5e6b735e-7f23-4a8a-b18f-a88f38ab7ec6)' in standuser_l2_chunk
+   and 'STAND_USER_SPIRIT_POOL_TIER1' in standuser_l2_chunk)
+
+combat_reading_cost_ok = bool(re.search(
+    r'new entry "Target_Stand_CombatPrediction" "SpellData"[\s\S]*?data "UseCosts" "BonusActionPoint:1;KiPoint:1"',
+    sp
+))
+ok('Combat Reading consumes KiPoint resource', combat_reading_cost_ok)
+
+# Lua progression structure
 ok('StandDefinitions has no level [1] gate', '[1]' not in sd)
 ok('StandDefinitions level 3 grants manifest/withdraw', '[3]' in sd and 'Target_Stand_Manifest' in sd and 'Target_Stand_Withdraw' in sd)
 ok('Runtime progression uses stand-user progression level helper (multiclass-safe gate)', 'GetUserStandProgressLevel' in ls)
@@ -165,7 +229,7 @@ levels_lua = sorted(set(int(x) for x in re.findall(r'\[(\d+)\]\s*=\s*\{', sd)))
 levels_star_prog = []
 for m in re.finditer(r'<node id="Progression">([\s\S]*?)</node>', p):
     chunk = m.group(1)
-    if 'Name" type="FixedString" value="TheStar"' in chunk:
+    if 'value="TheStar"' in chunk:
         lv = re.search(r'Level" type="uint8" value="(\d+)"', chunk)
         if lv:
             levels_star_prog.append(int(lv.group(1)))
@@ -194,12 +258,14 @@ ok('Build script rebuilds and does not trust existing stage dir',
 # Install script should deploy packaged .pak, not source-folder symlink.
 ok('Install script deploys .pak into BG3 Mods', '.pak' in ins and 'cp -f "$PAK_PATH" "$TARGET_PAK"' in ins and '--symlink' not in ins)
 
-# Runtime-uncertain warning: direct SelectSkills selector usage
-if 'SelectSkills(2,Acrobatics,Athletics,Insight,Intimidation,Perception,SleightOfHand,Stealth)' in p:
-    warn(
-        'Level 1 skill selection uses direct SelectSkills(2,...)',
-        'Static validation passes, but BG3 character creation UI/runtime acceptance is unverified. Test: New Game -> StandUser -> verify exactly 2 skill picks from intended list.'
-    )
+ok('Ability distribution preset linked to StandUser class UUID',
+   'ClassUUID" type="guid" value="7a23b113-0a85-4f8f-86ca-7f88f5de9c61"' in ap)
+
+# Runtime verification reminder for skill picker UX
+warn(
+    'Level 1 skill picker requires in-game UX verification',
+    'Test: New Game -> StandUser -> verify exactly 2 skill picks are presented from the Stand User skill list.'
+)
 
 # Report
 failed = [c for c in checks if not c[1]]

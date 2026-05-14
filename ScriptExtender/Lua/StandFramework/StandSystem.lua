@@ -190,8 +190,8 @@ function StandSystem.GetUserStandProgressLevel(user)
     return 3
   end
 
-  -- Fallback for future Arcana before passive mapping is added.
-  return Osi.GetLevel(user) or 1
+  -- Before Arcana subclass selection, keep the base progression gate at 1.
+  return 1
 end
 
 function StandSystem.GetDefinition(user)
@@ -413,6 +413,36 @@ function StandSystem.TryIntercept(user, incomingAttacker)
     Osi.ApplyStatus(user, "STAND_INTERCEPT_GUARD", 6.0, 1, stand)
     Osi.ApplyStatus(user, "STAND_INTERCEPT_TRIGGERED", 3.0, 1, stand)
   end
+end
+
+function StandSystem.Reposition(user)
+  local state = getUserState(user)
+  if not state or not state.stand then
+    return
+  end
+
+  local stand = state.stand
+  local ux, uy, uz = Osi.GetPosition(user)
+  if not ux then
+    return
+  end
+
+  local sx, sy, sz = Osi.GetPosition(stand)
+  local tx = ux + 1.2
+  local ty = uy
+  local tz = uz
+
+  if sx then
+    local dx = sx - ux
+    local dy = sy - uy
+    local planar = math.sqrt((dx * dx) + (dy * dy))
+    if planar > 0.1 then
+      tx = ux + (dx / planar) * 1.2
+      ty = uy + (dy / planar) * 1.2
+    end
+  end
+
+  Osi.TeleportToPosition(stand, tx, ty, tz, "", 0, 1, 0)
 end
 
 function StandSystem.TryBulletCatch(defender, attacker)

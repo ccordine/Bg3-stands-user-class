@@ -39,7 +39,9 @@ Then build with:
 5. Optional but recommended for runtime Lua mechanics: install BG3 Script Extender and ensure `ScriptExtender/Lua/BootstrapServer.lua` loads.
 6. Start a new character and select `StandUser` class.
 7. At level 3, choose `TheStar` subclass when prompted.
-8. Enter combat, cast `Manifest Stand`, and validate:
+8. Enter combat from level 1 onward and validate:
+- Level 1 loop: `Manifest Stand`, `ORA Barrage`, `Stand Intercept`, `Reposition Stand`
+- Level 2 loop: `Heavy Stand Blow` + `Combat Reading` (Spirit/Ki resource spend)
 - Stand spawns and joins combat
 - Stand has Star abilities by level
 - Tether auto-return triggers when too far
@@ -47,10 +49,12 @@ Then build with:
 - Debilitating Stand statuses echo to user
 9. Cast `Withdraw Stand` to end link and despawn.
 
-## Current Ability Progression (The Star)
-- Early: Manifest, Withdraw, Barrage, Heavy Strike, Projectile Intercept
-- Mid (level 6): Precision Counter, Stand Leap
-- Late (level 10): Combat Prediction, Stand Rush Ultimate
+## Current Ability Progression (Stand User + The Star)
+- Level 1 base loop: Manifest, Withdraw, ORA Barrage, Stand Intercept, Reposition Stand
+- Level 2 base spike: Heavy Stand Blow, Combat Reading (Ki spend)
+- Level 3 Arcana unlock: choose `The Star` and gain Precision Counter
+- Mid (level 6): Stand Leap + upgraded Star passives
+- Late (level 10): Stand Rush Ultimate
 - Capstone (level 12): Time Stop (freeze pulse placeholder with extra action tempo)
 
 ## Known Limitations
