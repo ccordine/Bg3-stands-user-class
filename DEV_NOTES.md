@@ -10,10 +10,10 @@ Refactored from one-off summon behavior into:
 - `StandDefinitions.lua`
   - `Core` section for universal class features
   - `Arcana` table for subclass-specific stand definitions
-  - Progression tiers per Arcana using unlock levels
+  - Split `userActions`, `standActions`, and tier passives per Arcana
 - `StandSystem.lua`
   - Arcana resolution from passives
-  - Progression grant pipeline
+  - User action, stand action, and passive grant pipeline
   - Manifest/withdraw lifecycle
   - Tether + linked damage processing
   - Stand owner index for efficient lookup
@@ -28,13 +28,18 @@ Refactored from one-off summon behavior into:
 Arcana definition supports:
 - `id`
 - `displayName`
+- `standName`
 - `archetype`
+- `entityTemplate`
 - `summonTemplate`
+- `userActions[level]`
+- `standActions[level]`
+- `passives[level]`
 - `rangeProfile`
 - `damageLinkProfile`
 - `initiativeMode`
 - `controllable`
-- `progression[level]`
+- `rules`
 
 ## Files changed
 - `ScriptExtender/Lua/BootstrapServer.lua`
@@ -46,13 +51,15 @@ Arcana definition supports:
 - `Public/StandPrototype/Stats/Generated/Data/StandPrototype_Passives.txt`
 - `Public/StandPrototype/ClassDescriptions/ClassDescriptions.lsx`
 - `Public/StandPrototype/Progressions/Progressions.lsx`
+- `Public/StandPrototype/RootTemplates/StandPrototype_StarPlatinum.lsx`
 - `Public/StandPrototype/ClassScaffolding/StandUser_Class_Template.md`
 - `README.md`
 
 ## BG3-specific hacks / workarounds
-- Uses stock NPC UUID as stand body placeholder.
+- Star Platinum has a dedicated root template that inherits the current stock spectral body placeholder.
 - Uses `HitpointsChanged` listener for stand->user damage mirror.
 - Tether behavior is deterministic `AutoReturn` teleport for close-range prototype.
+- The Star / Star Platinum uses a fixed 30ft / 9m close-range tether; future remote Stand subclasses should opt into larger ranges or explicit tether scaling in their StandDefinition.
 - Time Stop is implemented as a freeze-pulse placeholder spell chain.
 
 ## Runtime-uncertain audit items
@@ -69,15 +76,19 @@ Arcana definition supports:
   - Subclass choice is defined by `StandUser` progression at class level 3.
   - ASI/feat cadence is owned by base class levels 4/8/12.
   - `TheStar` level 12 grants capstone only (no duplicate `AllowImprovement`).
-  - Level 1 now grants full stand combat loop actions (Manifest/Withdraw/Barrage/Intercept/Reposition).
-  - Level 2 now grants resource loop + panic spike (`Combat Reading` + `Heavy Stand Blow`).
+  - Player spell lists grant command/anchor actions only.
+  - Star Platinum receives stand combat actions at runtime from `StandDefinition.standActions`.
 - Runtime defensive cleanup implemented:
   - On turn start for Stand Users: stale stand/user link status cleanup.
   - On party join/session load: cleanup + progression refresh.
   - On death: forced withdraw and cleanup.
 - Runtime progression gating note:
   - Lua stand progression now uses `GetUserStandProgressLevel()` with class-feature passive checks
-    (`TheStar` 3/6/10/12 tiers) and no longer falls back to raw total level before subclass.
+    (`TheStar` 3/5/6/10/12 stand action gates) and no longer falls back to raw total level before subclass.
+- Action economy note:
+  - Manifest/Withdraw are free user actions.
+  - Stand attack techniques are action-cost attacks.
+  - Stand Intercept remains a reaction and Time Stop is a bonus-action capstone.
 - Runtime checks still requiring in-game verification:
   - multiclass into StandUser from another class
   - multiclass out from StandUser
@@ -86,5 +97,5 @@ Arcana definition supports:
   - wildshape/disguise/polymorph/silence/stun/downed interactions
 
 ## Practical migration path to full class records
-1. Keep `StandDefinitions`/`StandSystem` unchanged.
+1. Add future Stand actions under `standActions`, not player spell lists.
 2. Keep progression unlocks aligned to class/subclass level milestones.

@@ -15,8 +15,14 @@ add equipment entry "OBJ_Keychain"
 add equipmentgroup
 add equipment entry "OBJ_Bag_AlchemyPouch"
 add equipmentgroup
-add equipment entry "ARM_Camp_Body"
+add equipment entry "ARM_Vanity_Body_Patriars_Black"
 add equipmentgroup
-add equipment entry "ARM_Camp_Shoes"
+add equipment entry "ARM_Camp_Shoes_E"
+add equipmentgroup
+add equipment entry "OBJ_Dye_BlackBlue"
+add equipmentgroup
+add equipment entry "OBJ_Dye_RoyalBlue"
+add equipmentgroup
+add equipment entry "OBJ_Dye_BluePurple"
 add equipmentgroup
 add equipment entry "OBJ_Backpack_CampSupplies"

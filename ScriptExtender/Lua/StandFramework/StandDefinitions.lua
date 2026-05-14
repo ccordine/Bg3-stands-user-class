@@ -16,22 +16,24 @@ StandDefinitions = {
     TheStar = {
       id = "the_star",
       displayName = "The Star",
+      standName = "Star Platinum",
       archetype = "CloseRangePowerStand",
-      -- Prefer ghostly humanoid templates to keep a stand-like projection body.
+      entityTemplate = "STANDPROTOTYPE_STAR_PLATINUM_6f8d9ac1-1d13-4cb4-aa64-85c2e2bc07c1",
+      -- Dedicated Star Platinum template first; stock strong-human fallback keeps
+      -- manifest reliable without reintroducing Specter/Wraith combat kits.
       summonTemplates = {
-        "Shadow_Wraith_A_066133a8-5dce-4636-8ba1-13efb1140c54",
-        "S_WYR_Gortash_Office_BaneGhost_08_027d8705-11bb-4697-8d3f-8918554ff45f"
+        "STANDPROTOTYPE_STAR_PLATINUM_6f8d9ac1-1d13-4cb4-aa64-85c2e2bc07c1",
+        "BASE_Humans_Male_Strong_12c0a711-1459-48e2-a50e-7b792eee0918"
       },
-      summonTemplate = "Shadow_Wraith_A_066133a8-5dce-4636-8ba1-13efb1140c54",
-      -- Reliability fallback: if no spectral template resolves in this patch level,
-      -- use the user template so manifest never hard-fails.
-      allowUserTemplateFallback = true,
+      summonTemplate = "STANDPROTOTYPE_STAR_PLATINUM_6f8d9ac1-1d13-4cb4-aa64-85c2e2bc07c1",
+      allowUserTemplateFallback = false,
       forceUnarmed = true,
       baseStandACBonus = 3,
       midStandACBonus = 1,
       lateStandACBonus = 1,
       rangeProfile = {
-        tetherRange = 12.0,
+        -- BG3 uses metric internally; 9m is the tabletop 30ft close-range radius.
+        tetherRange = 9.0,
         breakBehavior = "AutoReturn"
       },
       damageLinkProfile = {
@@ -40,33 +42,67 @@ StandDefinitions = {
       },
       initiativeMode = "JoinCombat",
       controllable = true,
-      progression = {
+      userActions = {
         [3] = {
-          userSpells = { "Target_Stand_Manifest", "Target_Stand_Withdraw" },
-          standSpells = {
-            "Target_Stand_Barrage",
-            "Target_Stand_HeavyPunch",
-            "Target_Stand_Intercept"
-          },
-          passives = { "STAND_USER_THE_STAR_TIER_EARLY" }
+          "Target_Stand_Manifest",
+          "Target_Stand_Withdraw",
+          "Target_Stand_Reposition",
+          "Target_Stand_CombatPrediction"
+        }
+      },
+      standActions = {
+        [3] = {
+          "Target_Stand_Barrage",
+          "Target_Stand_Intercept"
+        },
+        [5] = {
+          "Target_Stand_StarFinger"
         },
         [6] = {
-          standSpells = {
-            "Target_Stand_LeapCloser",
-            "Target_Stand_StarFinger"
-          },
-          passives = { "STAND_USER_THE_STAR_TIER_MID" }
+          "Target_Stand_Rush"
         },
         [10] = {
-          standSpells = {
-            "Target_Stand_RushUltimate"
-          },
-          passives = { "STAND_USER_THE_STAR_TIER_LATE" }
+          "Target_Stand_RelentlessBarrage"
         },
         [12] = {
-          standSpells = { "Target_Stand_TimeStop" },
-          passives = { "STAND_USER_THE_STAR_CAPSTONE" }
+          "Target_Stand_TimeStop"
         }
+      },
+      passives = {
+        [3] = {
+          "STAND_USER_THE_STAR_TIER_EARLY"
+        },
+        [6] = {
+          "STAND_USER_THE_STAR_TIER_MID"
+        },
+        [10] = {
+          "STAND_USER_THE_STAR_TIER_LATE"
+        },
+        [12] = {
+          "STAND_USER_THE_STAR_CAPSTONE"
+        }
+      },
+      rules = {
+        forceUnarmed = true,
+        linkedDamage = true,
+        tetherRange = 9.0,
+        canUseWeapons = false,
+        allowTetherScaling = false
+      },
+      visualStatuses = {
+        "GHOST_FX",
+        "WRAITH_GLOWING_EYES_TECHNICAL"
+      },
+      standEquipmentTemplates = {
+        -- Barbarian starter clothing gives Star Platinum a close stock "warrior" silhouette.
+        "f6599c3f-cfcd-4721-9cc2-1df5d8ff0154"
+      },
+      inheritedSpellBlocklist = {
+        "Target_LifeDrain_Wraith",
+        "Target_CreateShadow_Wraith",
+        "Target_EtherealJaunt",
+        "Target_EtherealJaunt_Queen",
+        "Target_EtherealJaunt_Spiderling"
       }
     }
   }

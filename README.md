@@ -7,7 +7,10 @@ Implemented now:
 - Real class/subclass record files (`ClassDescriptions`, `Progressions`) for `StandUser` and `TheStar`
 - Base stand framework mechanics (manifest/withdraw/tether/shared-damage)
 - Subclass architecture via Arcana definitions
+- StandDefinition ownership split: player/user actions are separate from Stand combat actions
 - `The Star` (close-range power) as first active Arcana
+- Dedicated Star Platinum root template inheriting the current spectral placeholder body
+- Themed starter presentation: dark formal camp outfit, blue/black dyes, Star Platinum ghost VFX, and a stock underwear/loincloth-style equip attempt
 - Tiered progression hooks (early/mid/late/capstone)
 - Status feedback mirroring from Stand to User
 - Stand clash detection between manifested Stands
@@ -42,23 +45,32 @@ Then build with:
 5. Optional but recommended for runtime Lua mechanics: install BG3 Script Extender and ensure `ScriptExtender/Lua/BootstrapServer.lua` loads.
 6. Start a new character and select `StandUser` class.
 7. At level 3, choose `TheStar` subclass when prompted.
-8. Enter combat from level 1 onward and validate:
-- Level 1 loop: `Manifest Stand`, `ORA Barrage`, `Stand Intercept`, `Reposition Stand`
-- Level 2 loop: `Heavy Stand Blow` + `Combat Reading` (Spirit/Ki resource spend)
-- Stand spawns and joins combat
-- Stand has Star abilities by level
+8. Enter combat and validate:
+- Player hotbar: `Manifest Stand`, `Withdraw Stand`, `Reposition Stand`, `Combat Reading`
+- Star Platinum hotbar after manifest: `ORA Barrage`, `Stand Intercept`
+- Stand User starts with a dark formal camp outfit plus black/blue dye options for a closer Jotaro-inspired look using stock assets
+- Star Platinum manifests with ghost VFX/glowing-eye VFX and attempts to equip a black underwear/loincloth-style stock item
+- Star Platinum is hard-capped to a 30ft / 9m close-range tether from the Stand User
+- Star Platinum gains `Star Finger` at Stand User level 5
+- Star Platinum gains `Stand Rush` at Stand User level 6
+- Star Platinum gains `Relentless Barrage` at Stand User level 10
+- Star Platinum gains `Time Stop` at Stand User level 12
+- Stand spawns as Star Platinum, joins combat, and owns the Star attack spells
 - Tether auto-return triggers when too far
 - Stand damage mirrors to user
 - Debilitating Stand statuses echo to user
 9. Cast `Withdraw Stand` to end link and despawn.
 
 ## Current Ability Progression (Stand User + The Star)
-- Level 1 base loop: Manifest, Withdraw, ORA Barrage, Stand Intercept, Reposition Stand
-- Level 2 base spike: Heavy Stand Blow, Combat Reading (Ki spend)
-- Level 3 Arcana unlock: choose `The Star` and gain Precision Counter
-- Mid (level 6): Stand Leap + upgraded Star passives
-- Late (level 10): Stand Rush Ultimate
-- Capstone (level 12): Time Stop (freeze pulse placeholder with extra action tempo)
+- Player/user actions: Manifest Stand, Withdraw Stand, Reposition Stand, Combat Reading
+- Free user actions: Manifest Stand, Withdraw Stand
+- Bonus user actions: Reposition Stand, Combat Reading
+- Star Platinum level 3: ORA Barrage action, Stand Intercept reaction
+- Star Platinum level 5: Star Finger action
+- Star Platinum level 6: Stand Rush action
+- Star Platinum level 10: Relentless Barrage action
+- Star Platinum level 12: Time Stop bonus action (freeze pulse placeholder with extra action tempo)
+- User feat mirroring currently covers Alert, Mobile, Tavern Brawler, and Sentinel/Guardian ids when the runtime exposes those passives.
 
 ## Known Limitations
 - Stand visual uses stock NPC template UUID placeholder.
@@ -68,7 +80,7 @@ Then build with:
 - Build/packaging currently depends on Divine backend compatibility on your host runtime.
 
 ## Next Stage
-1. Replace placeholder model/template with dedicated Stand actor template.
+1. Replace inherited spectral placeholder visuals with a final Star Platinum model.
 2. Upgrade intercept to true reaction redirection and hard attack cancellation.
 3. Add `The World` and `The Hermit` Arcana implementations using the same framework.
 

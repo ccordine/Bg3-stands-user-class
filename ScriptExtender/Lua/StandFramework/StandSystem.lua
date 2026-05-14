@@ -6,8 +6,10 @@ StandSystem.Active = {}
 StandSystem.StandOwner = {}
 StandSystem.UserArcana = {}
 StandSystem.UserProgression = {}
+StandSystem.DamageLinkGuard = {}
 
 local NULL_GUID = "NULL_00000000-0000-0000-0000-000000000000"
+local DEFAULT_CLOSE_RANGE_TETHER = 9.0
 
 local MIRRORABLE_STATUSES = {
   BURNING = true,
@@ -34,9 +36,75 @@ local USER_FORBIDDEN_STAND_SPELLS = {
   "Target_Stand_Intercept",
   "Target_Stand_PrecisionCounter",
   "Target_Stand_LeapCloser",
+  "Target_Stand_Rush",
   "Target_Stand_StarFinger",
   "Target_Stand_RushUltimate",
+  "Target_Stand_RelentlessBarrage",
   "Target_Stand_TimeStop"
+}
+
+local GLOBAL_INHERITED_STAND_SPELL_BLOCKLIST = {
+  "Target_LifeDrain_Wraith",
+  "Target_CreateShadow_Wraith",
+  "Target_EtherealJaunt",
+  "Target_EtherealJaunt_Queen",
+  "Target_EtherealJaunt_Spiderling"
+}
+
+local KNOWN_FEAT_PASSIVE_SYNC_CANDIDATES = {
+  "Actor",
+  "Alert",
+  "Athlete_PassiveBonuses",
+  "Athlete_StandUp",
+  "DefensiveDuelist",
+  "DualWielder_BonusAC",
+  "DualWielder_PassiveBonuses",
+  "ElementalAdept_Acid",
+  "ElementalAdept_Cold",
+  "ElementalAdept_Fire",
+  "ElementalAdept_Lightning",
+  "ElementalAdept_Thunder",
+  "GreatWeaponMaster_BonusAttack",
+  "GreatWeaponMaster_BonusDamage",
+  "Lucky",
+  "Lucky_Unlock",
+  "MageSlayer_Advantage",
+  "MageSlayer_AttackCaster",
+  "MageSlayer_BreakConcentration",
+  "MagicInitiate_Bard",
+  "MagicInitiate_Cleric",
+  "MagicInitiate_Druid",
+  "MagicInitiate_Sorcerer",
+  "MagicInitiate_Warlock",
+  "MagicInitiate_Wizard",
+  "MediumArmorMaster",
+  "Mobile",
+  "Mobile_PassiveBonuses",
+  "Mobile_CounterAttackOfOpportunity",
+  "Mobile_DashAcrossDifficultTerrain",
+  "PolearmMaster_AttackOfOpportunity",
+  "PolearmMaster_BonusAttack",
+  "Resilient_Charisma",
+  "Resilient_Constitution",
+  "Resilient_Dexterity",
+  "Resilient_Intelligence",
+  "Resilient_Strength",
+  "Resilient_Wisdom",
+  "RitualCaster_FreeSpells",
+  "SavageAttacker",
+  "Sentinel",
+  "Sentinel_Attack",
+  "Sentinel_OpportunityAdvantage",
+  "Sentinel_ZeroSpeed",
+  "Sharpshooter_AllIn",
+  "Sharpshooter_Bonuses",
+  "SpellSniper_Critical",
+  "TavernBrawler",
+  "TavernBrawler_Bonuses",
+  "Tough",
+  "WarCaster_Bonuses",
+  "WarCaster_OpportunitySpell",
+  "WeaponMaster"
 }
 
 local function ensureTables()
@@ -44,6 +112,7 @@ local function ensureTables()
   StandSystem.StandOwner = StandSystem.StandOwner or {}
   StandSystem.UserArcana = StandSystem.UserArcana or {}
   StandSystem.UserProgression = StandSystem.UserProgression or {}
+  StandSystem.DamageLinkGuard = StandSystem.DamageLinkGuard or {}
 end
 
 local function isValidGuid(guid)
@@ -54,6 +123,111 @@ local function trace(msg)
   if Ext and Ext.Utils and Ext.Utils.PrintWarning then
     Ext.Utils.PrintWarning("[StandPrototype] " .. tostring(msg))
   end
+end
+
+local function startsWith(value, prefix)
+  return type(value) == "string" and value:sub(1, #prefix) == prefix
+end
+
+local function isProbablyStatsId(value)
+  return type(value) == "string"
+    and value ~= ""
+    and not value:match("^%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x$")
+    and not value:match("^%d+$")
+end
+
+local function safeForEachPair(value, callback)
+  local ok, iter, state, initial = pcall(pairs, value)
+  if not ok or not iter then
+    return
+  end
+
+  local key = initial
+  while true do
+    local okNext, nextKey, nextValue = pcall(iter, state, key)
+    if not okNext then
+      break
+    end
+    if nextKey == nil then
+      break
+    end
+    callback(nextKey, nextValue)
+    key = nextKey
+  end
+end
+
+local function addIfStatsId(out, value, allow)
+  if isProbablyStatsId(value) and (not allow or allow(value)) then
+    out[value] = true
+  end
+end
+
+local function getExtEntity(guid)
+  if not Ext or not Ext.Entity or not Ext.Entity.Get then
+    return nil
+  end
+
+  local ok, entity = pcall(Ext.Entity.Get, guid)
+  if ok then
+    return entity
+  end
+  return nil
+end
+
+local function collectIdsFromObject(value, out, candidateFields, allow, depth, seen)
+  if depth <= 0 or value == nil then
+    return
+  end
+
+  local valueType = type(value)
+  if valueType == "string" then
+    addIfStatsId(out, value, allow)
+    return
+  elseif valueType ~= "table" and valueType ~= "userdata" then
+    return
+  end
+
+  seen = seen or {}
+  if seen[value] then
+    return
+  end
+  seen[value] = true
+
+  for field, _ in pairs(candidateFields) do
+    local ok, fieldValue = pcall(function()
+      return value[field]
+    end)
+    if ok then
+      collectIdsFromObject(fieldValue, out, candidateFields, allow, depth - 1, seen)
+    end
+  end
+
+  safeForEachPair(value, function(key, child)
+    if candidateFields[key] then
+      collectIdsFromObject(child, out, candidateFields, allow, depth - 1, seen)
+    elseif type(child) == "table" or type(child) == "userdata" then
+      collectIdsFromObject(child, out, candidateFields, allow, depth - 1, seen)
+    end
+  end)
+end
+
+local function collectEntityComponentIds(guid, componentNames, candidateFields, allow)
+  local out = {}
+  local entity = getExtEntity(guid)
+  if not entity then
+    return out
+  end
+
+  for _, componentName in ipairs(componentNames) do
+    local ok, component = pcall(function()
+      return entity[componentName]
+    end)
+    if ok and component then
+      collectIdsFromObject(component, out, candidateFields, allow, 4, {})
+    end
+  end
+
+  return out
 end
 
 local function getDistance(a, b)
@@ -96,11 +270,17 @@ end
 
 local function hasAnyPassive(entity, ids)
   for _, id in ipairs(ids) do
-    if Osi.HasPassive(entity, id) == 1 then
+    local ok, hasPassive = pcall(Osi.HasPassive, entity, id)
+    if ok and hasPassive == 1 then
       return true
     end
   end
   return false
+end
+
+local function hasPassiveSafe(entity, passive)
+  local ok, hasPassive = pcall(Osi.HasPassive, entity, passive)
+  return ok and hasPassive == 1
 end
 
 local function getAbilityValue(entity, abilityName)
@@ -175,15 +355,161 @@ local function enforceUserCommandOnlySpellbook(user)
   end
 end
 
+local function collectActionsByLevel(actionTable, level)
+  local actions = {}
+  local seen = {}
+  if not actionTable then
+    return actions
+  end
+
+  for _, unlockLevel in ipairs(sortedKeys(actionTable)) do
+    if unlockLevel <= level then
+      for _, spell in ipairs(actionTable[unlockLevel]) do
+        if not seen[spell] then
+          seen[spell] = true
+          table.insert(actions, spell)
+        end
+      end
+    end
+  end
+
+  return actions
+end
+
+local function collectAllActions(actionTable)
+  return collectActionsByLevel(actionTable, 99)
+end
+
+local function grantUserTierActions(user, def)
+  local level = StandSystem.GetUserStandProgressLevel(user)
+  for _, spell in ipairs(collectActionsByLevel(def.userActions, level)) do
+    Osi.AddSpell(user, spell, 1, 0)
+  end
+end
+
 local function grantStandTierSpells(user, stand, def)
   local level = StandSystem.GetUserStandProgressLevel(user)
-  for _, unlockLevel in ipairs(sortedKeys(def.progression)) do
-    if unlockLevel <= level then
-      local tier = def.progression[unlockLevel]
-      if tier.standSpells then
-        for _, spell in ipairs(tier.standSpells) do
-          Osi.AddSpell(stand, spell, 1, 0)
-        end
+  local allowed = {}
+
+  for _, spell in ipairs(GLOBAL_INHERITED_STAND_SPELL_BLOCKLIST) do
+    removeSpellSafe(stand, spell)
+  end
+  if def.inheritedSpellBlocklist then
+    for _, spell in ipairs(def.inheritedSpellBlocklist) do
+      removeSpellSafe(stand, spell)
+    end
+  end
+
+  for _, spell in ipairs(collectActionsByLevel(def.standActions, level)) do
+    allowed[spell] = true
+    Osi.AddSpell(stand, spell, 1, 0)
+  end
+
+  for _, spell in ipairs(collectAllActions(def.standActions)) do
+    if not allowed[spell] then
+      removeSpellSafe(stand, spell)
+    end
+  end
+
+  for _, spell in ipairs(USER_FORBIDDEN_STAND_SPELLS) do
+    if not allowed[spell] then
+      removeSpellSafe(stand, spell)
+    end
+  end
+end
+
+local function grantTierPassives(user, def, maxGranted)
+  local level = StandSystem.GetUserStandProgressLevel(user)
+  local highestGranted = maxGranted or 0
+
+  for _, unlockLevel in ipairs(sortedKeys(def.passives)) do
+    if unlockLevel <= level and unlockLevel > highestGranted then
+      for _, passive in ipairs(def.passives[unlockLevel]) do
+        Osi.AddPassive(user, passive)
+      end
+      highestGranted = unlockLevel
+    end
+  end
+
+  StandSystem.UserProgression[user] = highestGranted
+end
+
+local function shouldMirrorUserPassive(passive)
+  return isProbablyStatsId(passive) and not startsWith(passive, "STAND_")
+end
+
+local function shouldMirrorUserSpell(spell)
+  return isProbablyStatsId(spell)
+    and not startsWith(spell, "Target_Stand_")
+    and not startsWith(spell, "Shout_Stand_")
+    and not startsWith(spell, "Projectile_Stand_")
+    and not startsWith(spell, "Zone_Stand_")
+end
+
+local function syncUserPassivesToStand(user, stand)
+  for _, passive in ipairs(KNOWN_FEAT_PASSIVE_SYNC_CANDIDATES) do
+    if shouldMirrorUserPassive(passive) and hasPassiveSafe(user, passive) and not hasPassiveSafe(stand, passive) then
+      pcall(Osi.AddPassive, stand, passive)
+    end
+  end
+
+  local passives = collectEntityComponentIds(user, {
+    "PassiveContainer",
+    "Passives",
+    "ServerPassiveContainer"
+  }, {
+    ID = true,
+    Id = true,
+    Passive = true,
+    PassiveId = true,
+    PassiveName = true
+  }, shouldMirrorUserPassive)
+
+  for passive, _ in pairs(passives) do
+    if hasPassiveSafe(user, passive) and not hasPassiveSafe(stand, passive) then
+      pcall(Osi.AddPassive, stand, passive)
+    end
+  end
+end
+
+local function syncUserSpellsToStand(user, stand)
+  local spells = collectEntityComponentIds(user, {
+    "SpellBook",
+    "SpellBookComponent",
+    "SpellBookPrepares",
+    "PreparedSpells",
+    "LearnedSpells",
+    "AvailableSpells"
+  }, {
+    ID = true,
+    Id = true,
+    Spell = true,
+    SpellId = true,
+    SpellName = true
+  }, shouldMirrorUserSpell)
+
+  for spell, _ in pairs(spells) do
+    pcall(Osi.AddSpell, stand, spell, 1, 0)
+  end
+end
+
+local function syncUserCapabilitiesToStand(user, stand)
+  syncUserPassivesToStand(user, stand)
+  syncUserSpellsToStand(user, stand)
+end
+
+local function applyStandPresentation(user, stand, def, includeEquipment)
+  if def.visualStatuses then
+    for _, status in ipairs(def.visualStatuses) do
+      pcall(Osi.ApplyStatus, stand, status, -1.0, 1, user)
+    end
+  end
+
+  if includeEquipment and def.standEquipmentTemplates then
+    for _, template in ipairs(def.standEquipmentTemplates) do
+      local ok, item = pcall(Osi.TemplateAddTo, template, stand, 1)
+      if ok and isValidGuid(item) then
+        pcall(Osi.CharacterEquipItem, stand, item)
       end
     end
   end
@@ -204,7 +530,33 @@ local function tryCreateStand(template, user, x, y, z)
     return createdAtObject, "CreateAtObject"
   end
 
+  trace(
+    "Template spawn failed template=[" .. tostring(template)
+    .. "] CreateAt=[" .. tostring(okCreateAt) .. ":" .. tostring(created)
+    .. "] CreateAtObject=[" .. tostring(okCreateAtObject) .. ":" .. tostring(createdAtObject) .. "]"
+  )
   return nil, "spawn_failed"
+end
+
+local function enforceStandTether(owner, stand, state)
+  if not owner or not stand or not state then
+    return
+  end
+
+  local dist = getDistance(owner, stand)
+  if dist <= (state.tetherRange or DEFAULT_CLOSE_RANGE_TETHER) then
+    return
+  end
+
+  if state.breakBehavior == "AutoReturn" then
+    local ux, uy, uz = Osi.GetPosition(owner)
+    if ux then
+      Osi.TeleportToPosition(stand, ux + 1.0, uy, uz, "", 0, 1, 0)
+      Osi.ApplyStatus(owner, "STAND_TETHER_WARNING", 6.0, 1, stand)
+    end
+  else
+    Osi.ApplyStatus(stand, "STAND_TETHER_LOCKED", 6.0, 1, owner)
+  end
 end
 
 function StandSystem.RefreshUnarmoredDiscipline(user)
@@ -244,8 +596,10 @@ function StandSystem.RefreshStandDerivedBonuses(user)
 
   -- Constitution reduces reflected damage slightly; never below 50%.
   state.damageLinkRatio = math.max(0.5, (state.baseDamageLinkRatio or state.damageLinkRatio or 1.0) - (conMod * 0.03))
-  -- Wisdom tightens control and extends reliable projection modestly.
-  state.tetherRange = (state.baseTetherRange or state.tetherRange or 12.0) + math.max(0, wisMod * 0.5)
+  state.tetherRange = state.baseTetherRange or state.tetherRange or DEFAULT_CLOSE_RANGE_TETHER
+  if def and def.rules and def.rules.allowTetherScaling then
+    state.tetherRange = state.tetherRange + math.max(0, wisMod * 0.5)
+  end
 
   -- Clear previous derived statuses first.
   Osi.RemoveStatus(stand, "STAND_DERIVED_ALERT_INITIATIVE")
@@ -268,6 +622,9 @@ function StandSystem.RefreshStandDerivedBonuses(user)
   if def and def.forceUnarmed then
     enforceCharacterUnarmed(stand)
   end
+  applyStandPresentation(user, stand, def, false)
+  syncUserCapabilitiesToStand(user, stand)
+  enforceStandTether(user, stand, state)
 
   if def and def.id == "the_star" then
     if (def.baseStandACBonus or 0) > 0 then
@@ -310,6 +667,8 @@ function StandSystem.GetUserStandProgressLevel(user)
     return 10
   elseif Osi.HasPassive(user, "STAND_USER_THE_STAR_TIER_MID") == 1 then
     return 6
+  elseif Osi.HasPassive(user, "STAND_USER_LEVEL5_DISCIPLINE_NOTE") == 1 and Osi.HasPassive(user, "STAND_SUBCLASS_THE_STAR") == 1 then
+    return 5
   elseif Osi.HasPassive(user, "STAND_SUBCLASS_THE_STAR") == 1 then
     return 3
   end
@@ -371,28 +730,14 @@ function StandSystem.ApplyProgression(user)
   local level = StandSystem.GetUserStandProgressLevel(user)
   local maxGranted = StandSystem.UserProgression[user] or 0
 
-  for _, unlockLevel in ipairs(sortedKeys(def.progression)) do
-    if unlockLevel <= level and unlockLevel > maxGranted then
-      local tier = def.progression[unlockLevel]
-      if tier.userSpells then
-        for _, spell in ipairs(tier.userSpells) do
-          Osi.AddSpell(user, spell, 1, 0)
-        end
-      end
-      if tier.passives then
-        for _, passive in ipairs(tier.passives) do
-          Osi.AddPassive(user, passive)
-        end
-      end
-      StandSystem.UserProgression[user] = unlockLevel
-    end
-  end
-
+  grantUserTierActions(user, def)
+  grantTierPassives(user, def, maxGranted)
   enforceUserCommandOnlySpellbook(user)
 
   local state = getUserState(user)
   if state and state.stand and isValidGuid(state.stand) then
     grantStandTierSpells(user, state.stand, def)
+    syncUserCapabilitiesToStand(user, state.stand)
   end
 
   StandSystem.RefreshUnarmoredDiscipline(user)
@@ -477,6 +822,7 @@ function StandSystem.Manifest(user)
   StandSystem.Active[user] = {
     stand = stand,
     arcana = def.id,
+    standName = def.standName or def.displayName,
     baseDamageLinkRatio = def.damageLinkProfile.hpRatio,
     damageLinkRatio = def.damageLinkProfile.hpRatio,
     damageLinkType = def.damageLinkProfile.damageType,
@@ -489,10 +835,12 @@ function StandSystem.Manifest(user)
   Osi.SetFaction(stand, Osi.GetFaction(user))
   Osi.SetCanJoinCombat(stand, 1)
   -- Force player-facing identity away from source template names like "Specter".
-  pcall(Osi.SetStoryDisplayName, stand, "h4e09986egf919g4605gb7f5g62cf7b2a6e54")
+  pcall(Osi.SetStoryDisplayName, stand, "h00010001g0000g0000g0000g00000000009A")
+  pcall(Osi.SetDisplayName, stand, "h00010001g0000g0000g0000g00000000009A")
   if def.forceUnarmed then
     enforceCharacterUnarmed(stand)
   end
+  applyStandPresentation(user, stand, def, true)
   pcall(Osi.SetTag, stand, "SUMMON")
   pcall(Osi.AddPartyFollower, stand, user)
   if inCombat then
@@ -505,6 +853,7 @@ function StandSystem.Manifest(user)
   Osi.ApplyStatus(user, "STAND_VISION", -1, 1, stand)
 
   grantStandTierSpells(user, stand, def)
+  syncUserCapabilitiesToStand(user, stand)
 
   StandSystem.RefreshStandDerivedBonuses(user)
 end
@@ -533,6 +882,10 @@ end
 
 function StandSystem.OnStandDamaged(stand, attacker, damage)
   ensureTables()
+  if StandSystem.DamageLinkGuard[stand] then
+    return
+  end
+
   local user = getOwnerFromStand(stand)
   if not user then
     return
@@ -545,8 +898,29 @@ function StandSystem.OnStandDamaged(stand, attacker, damage)
 
   local linked = math.floor(tonumber(damage or 0) * (state.damageLinkRatio or 1.0))
   if linked > 0 then
+    StandSystem.DamageLinkGuard[user] = true
     pcall(Osi.ApplyDamage, user, linked, state.damageLinkType or "Psychic", attacker)
+    StandSystem.DamageLinkGuard[user] = nil
     pcall(Osi.ApplyStatus, user, "STAND_LINKED_DAMAGE_FEEDBACK", 3.0, 1, stand)
+  end
+end
+
+function StandSystem.OnUserDamaged(user, attacker, damage)
+  ensureTables()
+  if StandSystem.DamageLinkGuard[user] then
+    return
+  end
+
+  local state = getUserState(user)
+  if not state or not state.stand or not isValidGuid(state.stand) then
+    return
+  end
+
+  local linked = math.floor(tonumber(damage or 0) * (state.damageLinkRatio or 1.0))
+  if linked > 0 then
+    StandSystem.DamageLinkGuard[state.stand] = true
+    pcall(Osi.ApplyDamage, state.stand, linked, state.damageLinkType or "Psychic", attacker)
+    StandSystem.DamageLinkGuard[state.stand] = nil
   end
 end
 
@@ -568,18 +942,7 @@ function StandSystem.OnTurnStarted(entity)
     return
   end
 
-  local dist = getDistance(owner, state.stand)
-  if dist > (state.tetherRange or 12.0) then
-    if state.breakBehavior == "AutoReturn" then
-      local ux, uy, uz = Osi.GetPosition(owner)
-      if ux then
-        Osi.TeleportToPosition(entity, ux + 1.0, uy, uz, "", 0, 1, 0)
-        Osi.ApplyStatus(owner, "STAND_TETHER_WARNING", 6.0, 1, entity)
-      end
-    else
-      Osi.ApplyStatus(entity, "STAND_TETHER_LOCKED", 6.0, 1, owner)
-    end
-  end
+  enforceStandTether(owner, entity, state)
 end
 
 function StandSystem.TryIntercept(user, incomingAttacker)
@@ -590,7 +953,7 @@ function StandSystem.TryIntercept(user, incomingAttacker)
 
   local stand = state.stand
   local dist = getDistance(user, stand)
-  if dist <= (state.tetherRange or 12.0) then
+  if dist <= (state.tetherRange or DEFAULT_CLOSE_RANGE_TETHER) then
     Osi.ApplyStatus(user, "STAND_INTERCEPT_GUARD", 6.0, 1, stand)
     Osi.ApplyStatus(user, "STAND_INTERCEPT_TRIGGERED", 3.0, 1, stand)
   end

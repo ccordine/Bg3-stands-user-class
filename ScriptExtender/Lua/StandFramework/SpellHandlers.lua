@@ -70,6 +70,7 @@ Ext.Osiris.RegisterListener("AttackedBy", 7, "after", function(defender, attacke
 
   if damage > 0 then
     StandSystem.OnStandDamaged(defender, source, damage)
+    StandSystem.OnUserDamaged(defender, source, damage)
   end
 
   StandSystem.TryStandClash(attacker, defender)
