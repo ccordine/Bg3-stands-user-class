@@ -8,9 +8,12 @@ Implemented now:
 - Base stand framework mechanics (manifest/withdraw/tether/shared-damage)
 - Subclass architecture via Arcana definitions
 - StandDefinition ownership split: player/user actions are separate from Stand combat actions
+- Concrete entity contract: each Stand identity owns one root template, one character stat block, one display-name handle, and explicit action tables
+- Pre-subclass manifests use generic `BaseStand`; level 3 Arcana subclass selection changes the concrete Stand identity
+- Concrete class kit: `StandUser` owns its starter equipment IDs, item names, skill list, ability preset, passives, and action spell lists
 - `The Star` (close-range power) as first active Arcana
-- Dedicated Star Platinum root template inheriting the current spectral placeholder body
-- Themed starter presentation: dark formal camp outfit, blue/black dyes, Star Platinum ghost VFX, and a stock underwear/loincloth-style equip attempt
+- Dedicated Star Platinum root template with Star Platinum-owned stats/localization/actions
+- Themed starter presentation: Stand User field gear, camp gear, custom starter dyes, Star Platinum ghost VFX, and a stock underwear/loincloth-style equip attempt
 - Tiered progression hooks (early/mid/late/capstone)
 - Status feedback mirroring from Stand to User
 - Stand clash detection between manifested Stands
@@ -47,8 +50,10 @@ Then build with:
 7. At level 3, choose `TheStar` subclass when prompted.
 8. Enter combat and validate:
 - Player hotbar: `Manifest Stand`, `Withdraw Stand`, `Reposition Stand`, `Combat Reading`
+- Before level 3 subclass selection: manifested entity is generic `Stand`, not Star Platinum
 - Star Platinum hotbar after manifest: `ORA Barrage`, `Stand Intercept`
 - Stand User starts with a dark formal camp outfit plus black/blue dye options for a closer Jotaro-inspired look using stock assets
+- Stand User starter inventory uses `STANDUSER_*` item stat IDs rather than direct stock equipment entries
 - Star Platinum manifests with ghost VFX/glowing-eye VFX and attempts to equip a black underwear/loincloth-style stock item
 - Star Platinum is hard-capped to a 30ft / 9m close-range tether from the Stand User
 - Star Platinum gains `Star Finger` at Stand User level 5
@@ -56,6 +61,7 @@ Then build with:
 - Star Platinum gains `Relentless Barrage` at Stand User level 10
 - Star Platinum gains `Time Stop` at Stand User level 12
 - Stand spawns as Star Platinum, joins combat, and owns the Star attack spells
+- If the configured concrete root template fails to spawn, manifest fails visibly instead of falling back to the wrong body
 - Tether auto-return triggers when too far
 - Stand damage mirrors to user
 - Debilitating Stand statuses echo to user
@@ -65,6 +71,7 @@ Then build with:
 - Player/user actions: Manifest Stand, Withdraw Stand, Reposition Stand, Combat Reading
 - Free user actions: Manifest Stand, Withdraw Stand
 - Bonus user actions: Reposition Stand, Combat Reading
+- Base Stand before subclass: generic `Stand`, command/anchor actions only, no Star Platinum combat kit
 - Star Platinum level 3: ORA Barrage action, Stand Intercept reaction
 - Star Platinum level 5: Star Finger action
 - Star Platinum level 6: Stand Rush action
@@ -73,7 +80,7 @@ Then build with:
 - User feat mirroring currently covers Alert, Mobile, Tavern Brawler, and Sentinel/Guardian ids when the runtime exposes those passives.
 
 ## Known Limitations
-- Stand visual uses stock NPC template UUID placeholder.
+- Stand visuals still use stock game visual resources until custom art/model assets are authored.
 - Reaction/counter pipeline is implemented through status/listener approximation, not full interrupt redirection.
 - Initiative and controllability behavior depend on current BG3 patch/runtime behavior.
 - Time Stop is a practical prototype, not final cinematic-accurate temporal logic.

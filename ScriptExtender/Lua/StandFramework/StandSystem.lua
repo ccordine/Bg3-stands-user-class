@@ -38,10 +38,10 @@ local USER_FORBIDDEN_STAND_SPELLS = {
   "Target_Stand_LeapCloser",
   "Target_Stand_Rush",
   "Target_Stand_StarFinger",
-  "Target_Stand_RushUltimate",
   "Target_Stand_RelentlessBarrage",
   "Target_Stand_TimeStop"
 }
+
 
 local GLOBAL_INHERITED_STAND_SPELL_BLOCKLIST = {
   "Target_LifeDrain_Wraith",
@@ -123,6 +123,21 @@ local function trace(msg)
   if Ext and Ext.Utils and Ext.Utils.PrintWarning then
     Ext.Utils.PrintWarning("[StandPrototype] " .. tostring(msg))
   end
+end
+
+local function formatCallResult(ok, ...)
+  local parts = { ok and "ok" or "error" }
+  local count = select("#", ...)
+  for i = 1, count do
+    table.insert(parts, tostring(select(i, ...)))
+  end
+  return table.concat(parts, " | ")
+end
+
+local function callAndTrace(label, fn, ...)
+  local ok, a, b, c, d = pcall(fn, ...)
+  trace(label .. " => " .. formatCallResult(ok, a, b, c, d))
+  return ok, a, b, c, d
 end
 
 local function startsWith(value, prefix)
@@ -380,16 +395,19 @@ local function collectAllActions(actionTable)
   return collectActionsByLevel(actionTable, 99)
 end
 
-local function grantUserTierActions(user, def)
-  local level = StandSystem.GetUserStandProgressLevel(user)
-  for _, spell in ipairs(collectActionsByLevel(def.userActions, level)) do
-    Osi.AddSpell(user, spell, 1, 0)
-  end
-end
-
 local function grantStandTierSpells(user, stand, def)
   local level = StandSystem.GetUserStandProgressLevel(user)
+  local arcana = StandSystem.ResolveArcana(user)
   local allowed = {}
+
+  trace(
+    "grantStandTierSpells start"
+      .. " user=[" .. tostring(user) .. "]"
+      .. " stand=[" .. tostring(stand) .. "]"
+      .. " arcana=[" .. tostring(arcana) .. "]"
+      .. " defId=[" .. tostring(def and def.id) .. "]"
+      .. " level=[" .. tostring(level) .. "]"
+  )
 
   for _, spell in ipairs(GLOBAL_INHERITED_STAND_SPELL_BLOCKLIST) do
     removeSpellSafe(stand, spell)
@@ -402,7 +420,15 @@ local function grantStandTierSpells(user, stand, def)
 
   for _, spell in ipairs(collectActionsByLevel(def.standActions, level)) do
     allowed[spell] = true
-    Osi.AddSpell(stand, spell, 1, 0)
+    trace("grantStandTierSpells add spell=[" .. tostring(spell) .. "] stand=[" .. tostring(stand) .. "]")
+    callAndTrace(
+      "Osi.AddSpell(stand, spell, 0, 1) spell=[" .. tostring(spell) .. "]",
+      Osi.AddSpell,
+      stand,
+      spell,
+      0,
+      1
+    )
   end
 
   for _, spell in ipairs(collectAllActions(def.standActions)) do
@@ -416,6 +442,13 @@ local function grantStandTierSpells(user, stand, def)
       removeSpellSafe(stand, spell)
     end
   end
+
+  trace(
+    "grantStandTierSpells complete"
+      .. " user=[" .. tostring(user) .. "]"
+      .. " stand=[" .. tostring(stand) .. "]"
+      .. " level=[" .. tostring(level) .. "]"
+  )
 end
 
 local function grantTierPassives(user, def, maxGranted)
@@ -436,14 +469,6 @@ end
 
 local function shouldMirrorUserPassive(passive)
   return isProbablyStatsId(passive) and not startsWith(passive, "STAND_")
-end
-
-local function shouldMirrorUserSpell(spell)
-  return isProbablyStatsId(spell)
-    and not startsWith(spell, "Target_Stand_")
-    and not startsWith(spell, "Shout_Stand_")
-    and not startsWith(spell, "Projectile_Stand_")
-    and not startsWith(spell, "Zone_Stand_")
 end
 
 local function syncUserPassivesToStand(user, stand)
@@ -472,30 +497,20 @@ local function syncUserPassivesToStand(user, stand)
   end
 end
 
-local function syncUserSpellsToStand(user, stand)
-  local spells = collectEntityComponentIds(user, {
-    "SpellBook",
-    "SpellBookComponent",
-    "SpellBookPrepares",
-    "PreparedSpells",
-    "LearnedSpells",
-    "AvailableSpells"
-  }, {
-    ID = true,
-    Id = true,
-    Spell = true,
-    SpellId = true,
-    SpellName = true
-  }, shouldMirrorUserSpell)
-
-  for spell, _ in pairs(spells) do
-    pcall(Osi.AddSpell, stand, spell, 1, 0)
-  end
-end
-
 local function syncUserCapabilitiesToStand(user, stand)
   syncUserPassivesToStand(user, stand)
-  syncUserSpellsToStand(user, stand)
+end
+
+local function applyStandDisplayName(stand, def)
+  local standName = (def and (def.standName or def.displayName)) or "Stand"
+  local nameHandle = def and def.standDisplayNameHandle
+  trace(
+    "Applying Stand display name"
+      .. " stand=[" .. tostring(stand) .. "]"
+      .. " name=[" .. tostring(standName) .. "]"
+      .. " handle=[" .. tostring(nameHandle) .. "]"
+  )
+  trace("Stand display name is owned by root template localization; runtime override skipped.")
 end
 
 local function applyStandPresentation(user, stand, def, includeEquipment)
@@ -536,6 +551,26 @@ local function tryCreateStand(template, user, x, y, z)
     .. "] CreateAtObject=[" .. tostring(okCreateAtObject) .. ":" .. tostring(createdAtObject) .. "]"
   )
   return nil, "spawn_failed"
+end
+
+local function tryCreateStandFromDefinition(def, user, x, y, z)
+  local templates = {
+    def and def.summonTemplate,
+    def and def.fallbackSummonTemplate
+  }
+
+  local lastFailure = "template_empty"
+  for _, template in ipairs(templates) do
+    if template and template ~= "" then
+      local stand, spawnMethod = tryCreateStand(template, user, x, y, z)
+      if isValidGuid(stand) then
+        return stand, spawnMethod, template
+      end
+      lastFailure = spawnMethod
+    end
+  end
+
+  return nil, lastFailure, templates[1]
 end
 
 local function enforceStandTether(owner, stand, state)
@@ -641,10 +676,6 @@ end
 
 function StandSystem.ResolveArcana(user)
   ensureTables()
-  if StandSystem.UserArcana[user] then
-    return StandSystem.UserArcana[user]
-  end
-
   if Osi.HasPassive(user, "STAND_SUBCLASS_THE_WORLD") == 1 then
     StandSystem.UserArcana[user] = "TheWorld"
   elseif Osi.HasPassive(user, "STAND_SUBCLASS_THE_HERMIT") == 1 then
@@ -671,9 +702,12 @@ function StandSystem.GetUserStandProgressLevel(user)
     return 5
   elseif Osi.HasPassive(user, "STAND_SUBCLASS_THE_STAR") == 1 then
     return 3
+  elseif Osi.HasPassive(user, "STAND_USER_DEFENSIVE_SENSE") == 1
+    or Osi.HasPassive(user, "STAND_USER_SPIRIT_POOL_TIER1") == 1 then
+    return 2
   end
 
-  -- Before Arcana subclass selection, keep the base progression gate at 1.
+  -- Before Arcana subclass selection, keep the base Stand generic.
   return 1
 end
 
@@ -730,11 +764,21 @@ function StandSystem.ApplyProgression(user)
   local level = StandSystem.GetUserStandProgressLevel(user)
   local maxGranted = StandSystem.UserProgression[user] or 0
 
-  grantUserTierActions(user, def)
   grantTierPassives(user, def, maxGranted)
   enforceUserCommandOnlySpellbook(user)
 
   local state = getUserState(user)
+  if state and state.stand and isValidGuid(state.stand) and state.arcana ~= def.id then
+    trace(
+      "Active Stand definition changed; remanifesting"
+        .. " user=[" .. tostring(user) .. "]"
+        .. " oldArcana=[" .. tostring(state.arcana) .. "]"
+        .. " newArcana=[" .. tostring(def.id) .. "]"
+    )
+    StandSystem.Withdraw(user)
+    StandSystem.Manifest(user)
+    return
+  end
   if state and state.stand and isValidGuid(state.stand) then
     grantStandTierSpells(user, state.stand, def)
     syncUserCapabilitiesToStand(user, state.stand)
@@ -768,51 +812,15 @@ function StandSystem.Manifest(user)
     Osi.RemoveStatus(user, "TUT_SUMMON_BLOCK")
   end
 
-  -- BG3 hack: stock humanoid template until dedicated Stand asset is authored.
-  local templates = {}
-  if type(def.summonTemplates) == "table" then
-    for _, t in ipairs(def.summonTemplates) do
-      if t and t ~= "" then
-        table.insert(templates, t)
-      end
-    end
-  end
-  if def.summonTemplate and def.summonTemplate ~= "" then
-    table.insert(templates, def.summonTemplate)
-  end
-  if def.allowUserTemplateFallback ~= false then
-    local okTemplate, userTemplate = pcall(Osi.GetTemplate, user)
-    if okTemplate and userTemplate and userTemplate ~= "" then
-      table.insert(templates, userTemplate)
-    end
-  end
-
-  -- De-duplicate while preserving priority order.
-  local dedup = {}
-  local uniqueTemplates = {}
-  for _, t in ipairs(templates) do
-    if not dedup[t] then
-      dedup[t] = true
-      table.insert(uniqueTemplates, t)
-    end
-  end
-  templates = uniqueTemplates
-
-  local stand = nil
-  local spawnMethod = "none"
-  local usedTemplate = "none"
-  for _, template in ipairs(templates) do
-    local created, method = tryCreateStand(template, user, x, y, z)
-    if created then
-      stand = created
-      spawnMethod = method
-      usedTemplate = template
-      break
-    end
-  end
+  local stand, spawnMethod, usedTemplate = tryCreateStandFromDefinition(def, user, x, y, z)
 
   if not isValidGuid(stand) then
-    trace("Manifest failed: no stand created for user [" .. tostring(user) .. "]")
+    trace(
+      "Manifest failed: concrete stand template did not spawn"
+        .. " user=[" .. tostring(user) .. "]"
+        .. " arcana=[" .. tostring(def.id) .. "]"
+        .. " template=[" .. tostring(usedTemplate) .. "]"
+    )
     Osi.ApplyStatus(user, "STAND_MANIFEST_BLOCKED", 6.0, 1, user)
     return
   end
@@ -834,9 +842,8 @@ function StandSystem.Manifest(user)
 
   Osi.SetFaction(stand, Osi.GetFaction(user))
   Osi.SetCanJoinCombat(stand, 1)
-  -- Force player-facing identity away from source template names like "Specter".
-  pcall(Osi.SetStoryDisplayName, stand, "h00010001g0000g0000g0000g00000000009A")
-  pcall(Osi.SetDisplayName, stand, "h00010001g0000g0000g0000g00000000009A")
+  -- Force player-facing identity away from source template names.
+  applyStandDisplayName(stand, def)
   if def.forceUnarmed then
     enforceCharacterUnarmed(stand)
   end

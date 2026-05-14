@@ -1,28 +1,28 @@
 new equipment "EQP_CC_StandUser"
 add initialweaponset "Melee"
 add equipmentgroup
-add equipment entry "ARM_Monk"
+add equipment entry "STANDUSER_FIELD_JACKET"
 add equipmentgroup
-add equipment entry "OBJ_Potion_Healing"
+add equipment entry "STANDUSER_SPIRIT_DRAUGHT"
 add equipmentgroup
-add equipment entry "OBJ_Potion_Healing"
+add equipment entry "STANDUSER_SPIRIT_DRAUGHT"
 add equipmentgroup
-add equipment entry "OBJ_Scroll_Revivify"
+add equipment entry "STANDUSER_SOUL_ANCHOR_SCROLL"
 add equipmentgroup
-add equipment entry "ARM_Shoes_Monk"
+add equipment entry "STANDUSER_FIELD_BOOTS"
 add equipmentgroup
-add equipment entry "OBJ_Keychain"
+add equipment entry "STANDUSER_KEYCHAIN"
 add equipmentgroup
-add equipment entry "OBJ_Bag_AlchemyPouch"
+add equipment entry "STANDUSER_ALCHEMY_SATCHEL"
 add equipmentgroup
-add equipment entry "ARM_Vanity_Body_Patriars_Black"
+add equipment entry "STANDUSER_CAMP_COAT"
 add equipmentgroup
-add equipment entry "ARM_Camp_Shoes_E"
+add equipment entry "STANDUSER_CAMP_BOOTS"
 add equipmentgroup
-add equipment entry "OBJ_Dye_BlackBlue"
+add equipment entry "STANDUSER_DYE_MIDNIGHT"
 add equipmentgroup
-add equipment entry "OBJ_Dye_RoyalBlue"
+add equipment entry "STANDUSER_DYE_STARDUST"
 add equipmentgroup
-add equipment entry "OBJ_Dye_BluePurple"
+add equipment entry "STANDUSER_DYE_ARCANA"
 add equipmentgroup
-add equipment entry "OBJ_Backpack_CampSupplies"
+add equipment entry "STANDUSER_CAMP_SUPPLIES"

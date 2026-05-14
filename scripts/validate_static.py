@@ -21,6 +21,7 @@ prog_file = root / 'Public/StandPrototype/Progressions/Progressions.lsx'
 passive_file = root / 'Public/StandPrototype/Stats/Generated/Data/StandPrototype_Passives.txt'
 spell_file = root / 'Public/StandPrototype/Stats/Generated/Data/StandPrototype_Spells.txt'
 character_file = root / 'Public/StandPrototype/Stats/Generated/Data/StandPrototype_Characters.txt'
+item_file = root / 'Public/StandPrototype/Stats/Generated/Data/StandPrototype_Items.txt'
 loca_file = root / 'Localization/English/StandPrototype.loca.xml'
 loca_xml_file = root / 'Localization/English/StandPrototype.xml'
 loca_bin_file = root / 'Localization/English/StandPrototype.loca'
@@ -33,6 +34,7 @@ skill_list_file = root / 'Public/StandPrototype/Lists/SkillLists.lsx'
 spell_list_file = root / 'Public/StandPrototype/Lists/SpellLists.lsx'
 ability_preset_file = root / 'Public/StandPrototype/CharacterCreationPresets/AbilityDistributionPresets.lsx'
 star_platinum_template_file = root / 'Public/StandPrototype/RootTemplates/StandPrototype_StarPlatinum.lsx'
+base_stand_template_file = root / 'Public/StandPrototype/RootTemplates/StandPrototype_BaseStand.lsx'
 
 ok('ClassDescriptions exists', class_file.exists(), str(class_file))
 ok('Progressions exists', prog_file.exists(), str(prog_file))
@@ -40,7 +42,9 @@ ok('SkillLists exists', skill_list_file.exists(), str(skill_list_file))
 ok('SpellLists exists', spell_list_file.exists(), str(spell_list_file))
 ok('AbilityDistributionPresets exists', ability_preset_file.exists(), str(ability_preset_file))
 ok('Star Platinum root template exists', star_platinum_template_file.exists(), str(star_platinum_template_file))
+ok('Base Stand root template exists', base_stand_template_file.exists(), str(base_stand_template_file))
 ok('Star Platinum character stats exist', character_file.exists(), str(character_file))
+ok('StandPrototype item stats exist', item_file.exists(), str(item_file))
 ok('Compiled localization file exists (.loca)',
    loca_bin_file.exists(),
    str(loca_bin_file))
@@ -53,6 +57,7 @@ p = prog_file.read_text() if prog_file.exists() else ''
 pa = passive_file.read_text() if passive_file.exists() else ''
 sp = spell_file.read_text() if spell_file.exists() else ''
 char_stats = character_file.read_text() if character_file.exists() else ''
+item_stats = item_file.read_text() if item_file.exists() else ''
 loc = ''
 if loca_file.exists():
     loc += loca_file.read_text()
@@ -69,6 +74,7 @@ sl = skill_list_file.read_text() if skill_list_file.exists() else ''
 spl = spell_list_file.read_text() if spell_list_file.exists() else ''
 ap = ability_preset_file.read_text() if ability_preset_file.exists() else ''
 spt = star_platinum_template_file.read_text() if star_platinum_template_file.exists() else ''
+bst = base_stand_template_file.read_text() if base_stand_template_file.exists() else ''
 
 # StandUser/TheStar records
 class_chunks = re.findall(r'<node id="ClassDescription">([\s\S]*?)</node>', c)
@@ -301,14 +307,29 @@ ok('Stand attack techniques use action economy',
        'Target_Stand_LeapCloser',
        'Target_Stand_Rush',
        'Target_Stand_StarFinger',
-       'Target_Stand_RushUltimate',
        'Target_Stand_RelentlessBarrage',
    ]))
 ok('Time Stop is a bonus action capstone',
    spell_has_use_cost('Target_Stand_TimeStop', 'BonusActionPoint:1'))
 
 # Lua progression structure
-ok('StandDefinitions has no level [1] gate', '[1]' not in sd)
+base_stand_match = re.search(r'BaseStand\s*=\s*\{([\s\S]*?)\n\s*\},\n\s*TheStar\s*=', sd)
+the_star_match = re.search(r'TheStar\s*=\s*\{([\s\S]*?)\n\s*\}\n\s*\}', sd)
+base_stand_block = base_stand_match.group(1) if base_stand_match else ''
+the_star_block = the_star_match.group(1) if the_star_match else ''
+ok('StandDefinitions has a generic BaseStand before subclass selection',
+   'defaultArcana = "BaseStand"' in sd
+   and 'BaseStand' in sd
+   and 'standName = "Stand"' in base_stand_block
+   and 'summonTemplate = "72b4f830-2f41-4f50-8f80-0f7cc1383d01"' in base_stand_block
+   and 'fallbackSummonTemplate = "BASE_Humans_Male_Strong_12c0a711-1459-48e2-a50e-7b792eee0918"' in base_stand_block
+   and '[1]' in base_stand_block
+   and 'Target_Stand_Barrage' not in base_stand_block)
+ok('The Star subclass does not start as the default level 1 Stand',
+   '[1]' not in the_star_block
+   and 'standName = "Star Platinum"' in the_star_block
+   and 'summonTemplate = "6f8d9ac1-1d13-4cb4-aa64-85c2e2bc07c1"' in the_star_block
+   and 'fallbackSummonTemplate = "BASE_Humans_Male_Strong_12c0a711-1459-48e2-a50e-7b792eee0918"' in the_star_block)
 ok('StandDefinitions keeps user actions separate from stand actions',
    'userActions' in sd and 'standActions' in sd and 'Target_Stand_Manifest' in sd and 'Target_Stand_Barrage' in sd)
 ok('StandDefinitions has requested Star Platinum stand action ids',
@@ -329,12 +350,18 @@ ok('The Star static spell lists do not directly grant stand combat spells',
        'Target_Stand_LeapCloser',
        'Target_Stand_Rush',
        'Target_Stand_StarFinger',
-       'Target_Stand_RushUltimate',
        'Target_Stand_RelentlessBarrage',
        'Target_Stand_TimeStop',
    ]))
+ok('Obsolete RushUltimate spell entry removed',
+   'Target_Stand_RushUltimate' not in sp
+   and 'Target_Stand_RushUltimate' not in sd
+   and 'Target_Stand_RushUltimate' not in ls)
 ok('Runtime removes stand combat spells from the user spellbook',
    'enforceUserCommandOnlySpellbook' in ls and 'USER_FORBIDDEN_STAND_SPELLS' in ls)
+ok('Runtime does not grant player command spells redundantly',
+   'Osi.AddSpell(user' not in ls
+   and 'grantUserTierActions' not in ls)
 ok('Runtime grants stand actions to active stand entity',
    'grantStandTierSpells(user, state.stand, def)' in ls and 'collectActionsByLevel(def.standActions' in ls)
 ok('Runtime progression uses stand-user progression level helper (multiclass-safe gate)', 'GetUserStandProgressLevel' in ls)
@@ -347,20 +374,60 @@ ok('Runtime mirrors broad user feats/passives to stand',
    and 'Sentinel_Attack' in ls
    and 'TavernBrawler_Bonuses' in ls
    and 'not startsWith(passive, "STAND_")' in ls)
-ok('Runtime mirrors user learned abilities/spells to stand with stand-control exclusions',
-   'syncUserSpellsToStand' in ls
-   and 'SpellBook' in ls
-   and 'LearnedSpells' in ls
-   and 'not startsWith(spell, "Target_Stand_")' in ls
-   and 'syncUserCapabilitiesToStand(user, stand)' in ls)
-ok('Stand User starts with themed camp outfit and dyes',
-   all(x in (root / 'Public/StandPrototype/Stats/Generated/Equipment.txt').read_text() for x in [
-       'ARM_Vanity_Body_Patriars_Black',
-       'ARM_Camp_Shoes_E',
-       'OBJ_Dye_BlackBlue',
-       'OBJ_Dye_RoyalBlue',
-       'OBJ_Dye_BluePurple',
+ok('Runtime does not mirror arbitrary user spells to stand',
+   'syncUserSpellsToStand' not in ls
+   and 'shouldMirrorUserSpell' not in ls
+   and 'LearnedSpells' not in ls)
+equipment_text = (root / 'Public/StandPrototype/Stats/Generated/Equipment.txt').read_text()
+standuser_equipment_ids = [
+    'STANDUSER_FIELD_JACKET',
+    'STANDUSER_FIELD_BOOTS',
+    'STANDUSER_SPIRIT_DRAUGHT',
+    'STANDUSER_SOUL_ANCHOR_SCROLL',
+    'STANDUSER_KEYCHAIN',
+    'STANDUSER_ALCHEMY_SATCHEL',
+    'STANDUSER_CAMP_COAT',
+    'STANDUSER_CAMP_BOOTS',
+    'STANDUSER_DYE_MIDNIGHT',
+    'STANDUSER_DYE_STARDUST',
+    'STANDUSER_DYE_ARCANA',
+    'STANDUSER_CAMP_SUPPLIES',
+]
+stock_starter_ids = [
+    'ARM_Monk',
+    'ARM_Shoes_Monk',
+    'OBJ_Potion_Healing',
+    'OBJ_Scroll_Revivify',
+    'OBJ_Keychain',
+    'OBJ_Bag_AlchemyPouch',
+    'ARM_Vanity_Body_Patriars_Black',
+    'ARM_Camp_Shoes_E',
+    'OBJ_Dye_BlackBlue',
+    'OBJ_Dye_RoyalBlue',
+    'OBJ_Dye_BluePurple',
+    'OBJ_Backpack_CampSupplies',
+]
+ok('Stand User starting equipment uses mod-owned item stat ids',
+   all(x in equipment_text for x in standuser_equipment_ids)
+   and not any(f'add equipment entry "{x}"' in equipment_text for x in stock_starter_ids)
+   and all(f'new entry "{x}"' in item_stats for x in standuser_equipment_ids))
+ok('Stand User starting equipment has dedicated localization',
+   all(handle in loc for handle in [
+       'h00010001g0000g0000g0000g0000000000A0',
+       'h00010001g0000g0000g0000g0000000000B7',
    ]))
+ok('Stand command shouts are class actions, not spell-like casts',
+   all(f'new entry "{spell}"' in sp for spell in [
+       'Target_Stand_Manifest',
+       'Target_Stand_Withdraw',
+       'Target_Stand_Reposition',
+       'Target_Stand_Intercept',
+       'Target_Stand_CombatPrediction',
+       'Target_Stand_TimeStop',
+   ])
+   and 'data "SpellFlags" "IsSpell;HasVerbalComponent;HasSomaticComponent"' not in sp
+   and 'data "Ability" "Charisma"' not in sp
+   and 'data "Ability" "Wisdom"' not in sp)
 ok('Runtime applies Star Platinum presentation hooks',
    'applyStandPresentation' in ls
    and 'GHOST_FX' in sd
@@ -371,7 +438,8 @@ ok('Runtime applies Star Platinum presentation hooks',
 ok('Star Platinum has its own display-name handle',
    'h00010001g0000g0000g0000g00000000009A' in loc
    and 'Star Platinum' in loc
-   and 'SetDisplayName, stand, "h00010001g0000g0000g0000g00000000009A"' in ls
+   and 'applyStandDisplayName' in ls
+   and 'runtime override skipped' in ls
    and 'DisplayName" type="TranslatedString" handle="h00010001g0000g0000g0000g00000000009A"' in spt)
 ok('ORA Barrage is a fast multi-hit action',
    'new entry "Target_Stand_Barrage"' in sp
@@ -382,12 +450,18 @@ ok('Runtime strips inherited Specter/Wraith spell kit from the stand',
    and 'inheritedSpellBlocklist' in sd
    and 'Target_LifeDrain_Wraith' in ls
    and 'Target_CreateShadow_Wraith' in sd)
-ok('The Star does not fall back to user or Specter templates',
-   'allowUserTemplateFallback = false' in sd
+ok('The Star falls back only to the stock strong-human body, not user or Specter templates',
+   'allowUserTemplateFallback' not in sd
+   and 'summonTemplates' not in sd
+   and 'Osi.GetTemplate, user' not in ls
    and '066133a8-5dce-4636-8ba1-13efb1140c54' not in sd
-   and 'Shadow_Wraith_A' not in sd)
-ok('The Star has a non-Specter strong-human manifest fallback',
-   'BASE_Humans_Male_Strong_12c0a711-1459-48e2-a50e-7b792eee0918' in sd)
+   and 'Shadow_Wraith_A' not in sd
+   and 'fallbackSummonTemplate = "BASE_Humans_Male_Strong_12c0a711-1459-48e2-a50e-7b792eee0918"' in sd)
+ok('Runtime manifests from resolved stand definition before controlled fallback',
+   'def and def.summonTemplate' in ls
+   and 'def and def.fallbackSummonTemplate' in ls
+   and 'tryCreateStandFromDefinition(def, user, x, y, z)' in ls
+   and 'concrete stand template did not spawn' in ls)
 ok('Runtime mirrors linked damage in both directions with recursion guard',
    'OnStandDamaged' in ls
    and 'OnUserDamaged' in ls
@@ -404,9 +478,18 @@ ok('Star Platinum root template uses dedicated humanoid body, not stock Specter'
    and 'Stats" type="FixedString" value="STAND_STAR_PLATINUM_BODY"' in spt
    and '066133a8-5dce-4636-8ba1-13efb1140c54' not in spt
    and 'h00010001g0000g0000g0000g00000000009A' in spt)
+ok('Base Stand root template uses dedicated generic stand body',
+   'MapKey" type="FixedString" value="72b4f830-2f41-4f50-8f80-0f7cc1383d01"' in bst
+   and 'Stats" type="FixedString" value="STAND_BASE_BODY"' in bst
+   and 'h00010001g0000g0000g0000g00000000009B' in bst
+   and 'h00010001g0000g0000g0000g00000000009B' in loc
+   and 'Stand' in loc)
 ok('Star Platinum character stats are unarmed humanoid stand stats',
    'new entry "STAND_STAR_PLATINUM_BODY"' in char_stats
-   and 'using "HalfOrc_Barbarian"' in char_stats
+   and 'new entry "STAND_ENTITY_BODY_BASE"' in char_stats
+   and 'using "STAND_ENTITY_BODY_BASE"' in char_stats
+   and char_stats.count('using "HalfOrc_Barbarian"') == 1
+   and 'STAND_ENTITY_COMBAT_BODY' in char_stats
    and 'UnarmedAttackAbility" "Strength"' in char_stats
    and 'ActionResources" "ActionPoint:1;BonusActionPoint:1;ReactionActionPoint:1;Movement:9"' in char_stats)
 
@@ -421,8 +504,8 @@ if se_cfg_text:
 ok('Script Extender config enables Lua feature flag', cfg_ok)
 
 # Level gates match
-passives_match = re.search(r'passives\s*=\s*\{([\s\S]*?)\n\s*\},\n\s*rules', sd)
-levels_lua = sorted(set(int(x) for x in re.findall(r'\[(\d+)\]\s*=\s*\{', passives_match.group(1) if passives_match else '')))
+star_actions_match = re.search(r'TheStar\s*=\s*\{[\s\S]*?standActions\s*=\s*\{([\s\S]*?)\n\s*\},\n\s*passives', sd)
+levels_lua = sorted(set(int(x) for x in re.findall(r'\[(\d+)\]\s*=\s*\{', star_actions_match.group(1) if star_actions_match else '')))
 levels_star_prog = []
 for m in re.finditer(r'<node id="Progression">([\s\S]*?)</node>', p):
     chunk = m.group(1)
@@ -431,7 +514,10 @@ for m in re.finditer(r'<node id="Progression">([\s\S]*?)</node>', p):
         if lv:
             levels_star_prog.append(int(lv.group(1)))
 levels_star_prog = sorted(set(levels_star_prog))
-ok('TheStar level gates match Lua and Progressions', levels_lua == levels_star_prog, f'lua={levels_lua} prog={levels_star_prog}')
+expected_star_action_levels = sorted(set(levels_star_prog + [5]))
+ok('TheStar action gates match subclass progression plus level 5 class note',
+   levels_lua == expected_star_action_levels,
+   f'lua={levels_lua} expected={expected_star_action_levels} prog={levels_star_prog}')
 
 # Obsolete feat-first path not active
 feat_file = root / 'Public/StandPrototype/Stats/Generated/Data/StandPrototype_Feats.txt'

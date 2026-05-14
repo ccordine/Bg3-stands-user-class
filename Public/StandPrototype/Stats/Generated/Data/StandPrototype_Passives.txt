@@ -133,3 +133,8 @@ new entry "STAND_USER_LEVEL12_DISCIPLINE_NOTE"
 type "PassiveData"
 data "DisplayName" "h00010001g0000g0000g0000g000000000090;Discipline: Culmination"
 data "Description" "h00010001g0000g0000g0000g000000000091;Core Stand User discipline culminates here while Arcana paths deliver their final capstone technique."
+
+new entry "STAND_ENTITY_COMBAT_BODY"
+type "PassiveData"
+data "DisplayName" "h00010001g0000g0000g0000g0000000000B8;Stand Combat Body"
+data "Description" "h00010001g0000g0000g0000g0000000000B9;Internal passive marking a manifested Stand entity controlled by the Stand User framework."

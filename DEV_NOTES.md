@@ -41,6 +41,21 @@ Arcana definition supports:
 - `controllable`
 - `rules`
 
+Entity contract:
+- `StandUser` is the base class.
+- Arcana paths such as `TheStar` are subclasses.
+- Before subclass selection, the resolved Arcana is `BaseStand`.
+- Each Stand identity must define exactly one concrete `summonTemplate`.
+- Each concrete Stand template must have its own root-template record, character stat entry, and localization handle.
+- Runtime must not silently replace a failed concrete Stand with the player template or a stock fallback body.
+- Runtime must not mirror arbitrary user spellbook contents onto the Stand; Stand combat spells come from `standActions`.
+
+Class kit contract:
+- `StandUser` starter inventory uses mod-owned `STANDUSER_*` item stat IDs in `Equipment.txt`.
+- `StandUser` item stat IDs live in `StandPrototype_Items.txt` and own display-name/description handles.
+- `StandUser` owns its skill list, ability preset, progression table, command spell lists, and class/subclass passives.
+- If a stock item or character stat is inherited, it should be treated as an engine behavior base, not as the public class surface.
+
 ## Files changed
 - `ScriptExtender/Lua/BootstrapServer.lua`
 - `ScriptExtender/Lua/StandFramework/StandDefinitions.lua`
@@ -49,6 +64,7 @@ Arcana definition supports:
 - `Public/StandPrototype/Stats/Generated/Data/StandPrototype_Spells.txt`
 - `Public/StandPrototype/Stats/Generated/Data/StandPrototype_Statuses.txt`
 - `Public/StandPrototype/Stats/Generated/Data/StandPrototype_Passives.txt`
+- `Public/StandPrototype/Stats/Generated/Data/StandPrototype_Items.txt`
 - `Public/StandPrototype/ClassDescriptions/ClassDescriptions.lsx`
 - `Public/StandPrototype/Progressions/Progressions.lsx`
 - `Public/StandPrototype/RootTemplates/StandPrototype_StarPlatinum.lsx`
@@ -56,7 +72,7 @@ Arcana definition supports:
 - `README.md`
 
 ## BG3-specific hacks / workarounds
-- Star Platinum has a dedicated root template that inherits the current stock spectral body placeholder.
+- Star Platinum and Base Stand use dedicated root templates backed by stock visual resources until final custom assets exist.
 - Uses `HitpointsChanged` listener for stand->user damage mirror.
 - Tether behavior is deterministic `AutoReturn` teleport for close-range prototype.
 - The Star / Star Platinum uses a fixed 30ft / 9m close-range tether; future remote Stand subclasses should opt into larger ranges or explicit tether scaling in their StandDefinition.
@@ -78,6 +94,8 @@ Arcana definition supports:
   - `TheStar` level 12 grants capstone only (no duplicate `AllowImprovement`).
   - Player spell lists grant command/anchor actions only.
   - Star Platinum receives stand combat actions at runtime from `StandDefinition.standActions`.
+  - Base Stand is the default pre-subclass entity and does not receive Star Platinum combat actions.
+  - Concrete Stand manifest uses `def.summonTemplate` only; no user-template or multi-template fallback is allowed.
 - Runtime defensive cleanup implemented:
   - On turn start for Stand Users: stale stand/user link status cleanup.
   - On party join/session load: cleanup + progression refresh.
