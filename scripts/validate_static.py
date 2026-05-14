@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import re
 import sys
+import json
 from pathlib import Path
 
 root = Path(__file__).resolve().parent.parent
@@ -24,6 +25,7 @@ loca_xml_file = root / 'Localization/English/StandPrototype.xml'
 loca_bin_file = root / 'Localization/English/StandPrototype.loca'
 stand_def = root / 'ScriptExtender/Lua/StandFramework/StandDefinitions.lua'
 lua_system = root / 'ScriptExtender/Lua/StandFramework/StandSystem.lua'
+se_config = root / 'ScriptExtender/Config.json'
 build_sh = root / 'scripts/build.sh'
 install_sh = root / 'scripts/install.sh'
 skill_list_file = root / 'Public/StandPrototype/Lists/SkillLists.lsx'
@@ -51,10 +53,13 @@ if loca_file.exists():
     loc += loca_file.read_text()
 if loca_xml_file.exists():
     loc += "\n" + loca_xml_file.read_text()
+base_loc_xml = loca_xml_file.read_text() if loca_xml_file.exists() else (loca_file.read_text() if loca_file.exists() else '')
+base_loc_handles = set(re.findall(r'contentuid="([^"]+)"', base_loc_xml))
 sd = stand_def.read_text() if stand_def.exists() else ''
 ls = lua_system.read_text() if lua_system.exists() else ''
 bs = build_sh.read_text() if build_sh.exists() else ''
 ins = install_sh.read_text() if install_sh.exists() else ''
+se_cfg_text = se_config.read_text() if se_config.exists() else ''
 sl = skill_list_file.read_text() if skill_list_file.exists() else ''
 spl = spell_list_file.read_text() if spell_list_file.exists() else ''
 ap = ability_preset_file.read_text() if ability_preset_file.exists() else ''
@@ -117,6 +122,17 @@ for handle in (
 ):
     ok(f'Localization contains handle {handle}', f'contentuid="{handle}"' in loc)
 
+# If gender override localization files exist, keep them in sync with base handles.
+for gender in ('Female', 'Neutral'):
+    g_xml = root / f'Localization/English/Gender/{gender}/StandPrototype.xml'
+    g_loca = root / f'Localization/English/Gender/{gender}/StandPrototype.loca'
+    if g_xml.exists():
+        g_text = g_xml.read_text()
+        g_handles = set(re.findall(r'contentuid="([^"]+)"', g_text))
+        missing = sorted(base_loc_handles - g_handles)
+        ok(f'{gender} gender localization mirrors base handles', not missing, ', '.join(missing[:6]) if missing else '')
+        ok(f'{gender} gender compiled .loca exists', g_loca.exists(), str(g_loca))
+
 # ASI cadence ownership and no subclass duplication at L12
 ok('StandUser has ASI cadence at class levels 4/8/12',
    'Level" type="uint8" value="4"' in p and 'Level" type="uint8" value="8"' in p and 'Level" type="uint8" value="12"' in p and p.count('AllowImprovement" type="bool" value="true"') >= 3)
@@ -161,16 +177,62 @@ for uuid in spell_list_uuids:
     for spell in spell_list_map.get(uuid, []):
         all_spells.add(spell)
 
-missing_passives = [x for x in sorted(all_passives) if f'new entry "{x}" "PassiveData"' not in pa]
-missing_spells = [x for x in sorted(all_spells) if f'new entry "{x}" "SpellData"' not in sp]
+def has_entry(blob: str, name: str, data_type: str) -> bool:
+    pattern = rf'new entry "{re.escape(name)}"(?:\s+"[^"]+")?\s*\n\s*type "{re.escape(data_type)}"'
+    return re.search(pattern, blob) is not None
+
+missing_passives = [x for x in sorted(all_passives) if not has_entry(pa, x, 'PassiveData')]
+missing_spells = [x for x in sorted(all_spells) if not has_entry(sp, x, 'SpellData')]
 ok('All progression-referenced passives exist', not missing_passives, ', '.join(missing_passives) if missing_passives else 'ok')
 ok('All progression-referenced spells exist', not missing_spells, ', '.join(missing_spells) if missing_spells else 'ok')
 ok('All AddSpells selectors reference known SpellLists UUIDs',
    spell_list_uuids.issubset(set(spell_list_map.keys())),
    ', '.join(sorted(spell_list_uuids - set(spell_list_map.keys()))))
 
+# SpellData schema sanity checks (common runtime-cast failure causes)
+spell_entries = []
+for match in re.finditer(r'new entry "([^"]+)"(?:\s+"[^"]+")?\s*\n\s*type "SpellData"\n([\s\S]*?)(?=\nnew entry "|\Z)', sp):
+    spell_entries.append((match.group(1), match.group(2)))
+
+missing_cast_text_event = []
+missing_spell_animation = []
+target_missing_roll_or_props = []
+target_missing_radius = []
+
+for spell_name, body in spell_entries:
+    if 'data "CastTextEvent"' not in body:
+        missing_cast_text_event.append(spell_name)
+    if 'data "SpellAnimation"' not in body:
+        missing_spell_animation.append(spell_name)
+
+    spell_type_match = re.search(r'data "SpellType" "([^"]+)"', body)
+    spell_type = spell_type_match.group(1) if spell_type_match else ''
+    if spell_type == 'Target':
+        has_roll = 'data "SpellRoll"' in body
+        has_props = 'data "SpellProperties"' in body
+        if not (has_roll or has_props):
+            target_missing_roll_or_props.append(spell_name)
+        if 'data "TargetRadius"' not in body:
+            target_missing_radius.append(spell_name)
+
+ok('All SpellData entries define CastTextEvent',
+   not missing_cast_text_event,
+   ', '.join(missing_cast_text_event) if missing_cast_text_event else 'ok')
+ok('All SpellData entries define SpellAnimation',
+   not missing_spell_animation,
+   ', '.join(missing_spell_animation) if missing_spell_animation else 'ok')
+ok('Target SpellData entries define SpellRoll or SpellProperties',
+   not target_missing_roll_or_props,
+   ', '.join(target_missing_roll_or_props) if target_missing_roll_or_props else 'ok')
+ok('Target SpellData entries define TargetRadius',
+   not target_missing_radius,
+   ', '.join(target_missing_radius) if target_missing_radius else 'ok')
+
 # Manifest/Withdraw only via progression (not in base passive)
-base_passive_line = re.search(r'new entry "STAND_USER_BASE_CLASS_PASSIVE" "PassiveData"[\s\S]*?data "Properties" "([^"]*)"', pa)
+base_passive_line = re.search(
+    r'new entry "STAND_USER_BASE_CLASS_PASSIVE"(?:\s+"[^"]+")?[\s\S]*?data "(?:Boosts|Properties)" "([^"]*)"',
+    pa
+)
 base_props = base_passive_line.group(1) if base_passive_line else ''
 ok('Base class passive does not directly grant Manifest/Withdraw', 'Target_Stand_Manifest' not in base_props and 'Target_Stand_Withdraw' not in base_props, base_props)
 ok('Manifest/Withdraw are progression granted via AddSpells list',
@@ -213,7 +275,7 @@ ok('Level 2 grants spirit resource loop + panic strike',
    and 'STAND_USER_SPIRIT_POOL_TIER1' in standuser_l2_chunk)
 
 combat_reading_cost_ok = bool(re.search(
-    r'new entry "Target_Stand_CombatPrediction" "SpellData"[\s\S]*?data "UseCosts" "BonusActionPoint:1;KiPoint:1"',
+    r'new entry "Target_Stand_CombatPrediction"(?:\s+"[^"]+")?[\s\S]*?data "UseCosts" "BonusActionPoint:1;KiPoint:1"',
     sp
 ))
 ok('Combat Reading consumes KiPoint resource', combat_reading_cost_ok)
@@ -223,6 +285,16 @@ ok('StandDefinitions has no level [1] gate', '[1]' not in sd)
 ok('StandDefinitions level 3 grants manifest/withdraw', '[3]' in sd and 'Target_Stand_Manifest' in sd and 'Target_Stand_Withdraw' in sd)
 ok('Runtime progression uses stand-user progression level helper (multiclass-safe gate)', 'GetUserStandProgressLevel' in ls)
 ok('Runtime has stale state cleanup helper', 'CleanupStaleState' in ls)
+
+ok('Script Extender config exists', se_config.exists(), str(se_config))
+cfg_ok = False
+if se_cfg_text:
+    try:
+        cfg = json.loads(se_cfg_text)
+        cfg_ok = 'Lua' in cfg.get('FeatureFlags', [])
+    except Exception:
+        cfg_ok = False
+ok('Script Extender config enables Lua feature flag', cfg_ok)
 
 # Level gates match
 levels_lua = sorted(set(int(x) for x in re.findall(r'\[(\d+)\]\s*=\s*\{', sd)))

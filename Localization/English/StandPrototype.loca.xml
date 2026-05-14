@@ -1,8 +1,132 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<contentList date="2026-05-13 13:17">
+<contentList date="2026-05-13 22:42">
   <content contentuid="h4f6dfd10g4ca5g4b2fg8c76g1df52ef9c8c1" version="1">A spiritual close-range martial class. Stand Users rely on presence, reflexes, and force of will rather than armor. At level 3, choose an Arcana path to manifest a combat Stand with linked-risk tether mechanics.</content>
   <content contentuid="h1a91b8c8g7d65g4c7eg9f1ag36640f1499ef" version="1">Stand User</content>
   <content contentuid="h84f4a14eg56e5g4ec8ga998g67fe7dcef8b3" version="1">The Star manifests as a precision close-range powerhouse, overwhelming foes with relentless impact and reaction pressure.</content>
   <content contentuid="h4e09986egf919g4605gb7f5g62cf7b2a6e54" version="1">The Star</content>
   <content contentuid="h901ea68cg1717g46d6g8d95g396ab70c4cf6" version="1">Star</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000001" version="1">Manifest Stand</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000002" version="1">Call forth your fighting spirit as a separate combat body bound to your soul.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000003" version="1">Withdraw Stand</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000004" version="1">Recall your Stand to your body and cut off the exposed link before it breaks you.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000005" version="1">ORA Barrage</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000006" version="1">Your repeat pressure strike. Rapid close-range hits that keep enemy tempo under control.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000007" version="1">Heavy Stand Blow</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000008" version="1">Your early panic button. Commit everything into one brutal hit that can knock the target down.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000009" version="1">Stand Intercept</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000000A" version="1">Your Stand reacts first and intercepts the next incoming attack.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000010" version="1">Stand Active</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000011" version="1">Your Stand is manifested. Power rises, but every wound to it threatens you.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000012" version="1">Manifested Stand</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000013" version="1">A manifested fighting spirit bound directly to its user.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000014" version="1">Tether Strain</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000015" version="1">The tether snapped tight and your Stand was yanked back to you.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000016" version="1">Intercept Ready</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000017" version="1">Your Stand is primed to move first and shield the next hit.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000018" version="1">Intercept Guard</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000019" version="1">Your Stand catches the angle and blunts the blow.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000020" version="1">Stand User</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000021" version="1">You fight as one soul in two bodies: disciplined, dangerous, and always exposed.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000024" version="1">Preternatural Precision</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000025" version="1">Read the opening and counter with exact, ruthless timing.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000026" version="1">Stand Rush</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000027" version="1">Explosive short-range reposition into immediate striking pressure.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000028" version="1">Combat Reading</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000029" version="1">Spend Spirit to read intent and seize tempo before the next exchange.</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000002A" version="1">Relentless Barrage</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000002B" version="1">A sustained ORA rush that overwhelms any target trapped in your range.</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000002C" version="1">Time Stop</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000002D" version="1">Force the world to crawl while your Stand moves at impossible speed.</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000002E" version="1">Reposition Stand</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000002F" version="1">Snap your Stand back into a safer angle around your body to re-establish close-range pressure.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000030" version="1">Arcana: The Star</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000031" version="1">A close-range power path built on speed, pressure, and overwhelming force.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000032" version="1">The Star - Early</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000033" version="1">You awaken The Star and learn to pressure, intercept, and dominate close quarters.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000034" version="1">The Star - Mid</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000035" version="1">Your Stand moves before thought and counters before impact.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000036" version="1">The Star - Late</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000037" version="1">The tempo is yours. Your opponent is always half a step behind.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000038" version="1">The Star - Capstone</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000039" version="1">You breach the final threshold: when your will peaks, time obeys.</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000003C" version="1">Spiritual Link</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000003D" version="1">Pain, strain, and momentum flow across the soul-link.</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000003E" version="1">Tether Locked</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000003F" version="1">Your Stand is outside safe range and cannot project full force.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000040" version="1">Prediction Edge</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000041" version="1">Every movement is cleaner, faster, and deadlier after a successful read.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000042" version="1">Mobility Surge</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000043" version="1">Explosive repositioning lets you control distance at will.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000044" version="1">Time Stop Pulse</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000045" version="1">Internal capstone helper effect.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000046" version="1">Stand Vision</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000047" version="1">Your awareness extends through your Stand's eyes and instincts.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000048" version="1">Manifest Blocked</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000049" version="1">Your Stand refuses full manifestation outside active combat.</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000004A" version="1">Status Feedback</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000004B" version="1">Debilitations suffered by your Stand rebound through the soul-link.</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000004C" version="1">Reaction Sync</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000004D" version="1">User and Stand strike on the same beat.</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000004E" version="1">Stand Clash</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000004F" version="1">Two manifested spirits are clashing at point-blank force.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000050" version="1">Time Stop Focus</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000051" version="1">Your will surges past normal time; action windows stretch in your favor.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000052" version="1">Frozen Time</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000053" version="1">Temporal pressure locks your body as the battlefield stutters.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000054" version="1">No Active Stand</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000055" version="1">You cannot bend time without an active manifested Stand.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000056" version="1">Arcana: The World</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000057" version="1">Reserved subclass slot for future implementation.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000058" version="1">Arcana: The Hermit</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000059" version="1">Reserved subclass slot for future implementation.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000060" version="1">Stand Sense</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000061" version="1">Your instincts sharpen until danger feels slow.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000062" version="1">Spirit Pool</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000063" version="1">Channel Spirit Points to sustain advanced Stand techniques.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000064" version="1">Martial Foundation</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000065" version="1">Your body is the anchor. Your spirit is the weapon.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000066" version="1">Preternatural Precision</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000067" version="1">Your Stand reads tiny openings and punishes with surgical timing.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000068" version="1">Combat Reading</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000069" version="1">You read enemy intent early and set the pace of close combat.</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000006A" version="1">Bullet Catch</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000006B" version="1">Your Stand snaps to incoming shots and reduces ranged threat pressure.</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000006C" version="1">Unyielding Pressure</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000006D" version="1">Once you close range, your Stand's pressure does not relent.</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000006E" version="1">Dominating Presence</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000006F" version="1">Your Stand presence crushes tempo and forces enemies onto the defensive.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000070" version="1">Stand Combat Loop</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000071" version="1">Core loop: manifest in combat, pressure in close range, watch tether and linked damage, withdraw to survive.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000072" version="1">Discipline: Refinement</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000073" version="1">No major unlock by design. This level reinforces core Stand User fundamentals.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000074" version="1">Discipline: Tempo</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000075" version="1">No major unlock by design. Focus on pressure timing and reaction control.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000076" version="1">Discipline: Anchor</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000077" version="1">No major unlock by design. Improve positioning while maintaining tether safety.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000078" version="1">Discipline: Conversion</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000079" version="1">No major unlock by design. Convert defensive reads into counter pressure.</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000007A" version="1">Discipline: Dominance</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000007B" version="1">No major unlock by design. Master initiative and close-range control.</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000007C" version="1">Discipline: Threshold</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000007D" version="1">No major unlock by design. Prepare for final temporal mastery.</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000007E" version="1">Linked Damage</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000007F" version="1">Your Stand was hit, and the pain echoed back through your soul-link.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000080" version="1">Intercept Triggered</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000081" version="1">Your Stand intercepted the attack window before impact.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000082" version="1">Bullet Catch</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000083" version="1">Your Stand reacted to incoming ranged pressure and mitigated the hit.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000084" version="1">Unarmored Discipline</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000085" version="1">Stand Users rely on presence, reflexes, and spiritual force rather than armor. Defensive bonuses apply while unarmored.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000086" version="1">Unarmored Defense</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000087" version="1">While unarmored, your reflexive stand discipline improves your Armor Class.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000088" version="1">Stylish Presence</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000089" version="1">While unarmored, your confidence and posture seize the initiative.</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000008A" version="1">Shared Initiative</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000008B" version="1">Your Stand mirrors your Alert-level initiative edge.</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000008C" version="1">Shared Mobility</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000008D" version="1">Your Stand mirrors your mobile footwork and closes distance faster.</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000008E" version="1">Brawler Pressure</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000008F" version="1">Your Stand channels your brawler fundamentals into heavier close-range pressure.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000090" version="1">Discipline: Culmination</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000091" version="1">Core Stand User discipline culminates here while Arcana paths deliver their final capstone technique.</content>
 </contentList>

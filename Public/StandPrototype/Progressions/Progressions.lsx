@@ -8,7 +8,7 @@
         <node id="Progression">
           <attribute id="Level" type="uint8" value="1" />
           <attribute id="Name" type="LSString" value="StandUser" />
-          <attribute id="Boosts" type="LSString" value="ProficiencyBonus(SavingThrow,Dexterity);ProficiencyBonus(SavingThrow,Wisdom);Proficiency(SimpleWeapons)" />
+          <attribute id="Boosts" type="LSString" value="ProficiencyBonus(SavingThrow,Dexterity);ProficiencyBonus(SavingThrow,Wisdom)" />
           <attribute id="PassivesAdded" type="LSString" value="STAND_USER_BASE_CLASS_PASSIVE;STAND_USER_MARTIAL_FOUNDATION;STAND_USER_TUTORIAL_LOOP;STAND_USER_UNARMORED_DISCIPLINE" />
           <attribute id="ProgressionType" type="uint8" value="0" />
           <attribute id="Selectors" type="LSString" value="AddSpells(a6f8f7c9-8475-46f5-9f7f-24f9dcb7c9a1);SelectSkills(0d9c53e6-52c4-4c21-89f5-60467f0d95c3,2)" />

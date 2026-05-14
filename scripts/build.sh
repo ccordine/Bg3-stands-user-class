@@ -87,6 +87,12 @@ if [[ ! -f "$MOD_ROOT/meta.lsx" ]]; then
   exit 1
 fi
 
+MODULE_UUID="$(sed -n 's/.*id="UUID" type="FixedString" value="\([^"]*\)".*/\1/p' "$MOD_ROOT/meta.lsx" | head -n1)"
+if [[ -z "$MODULE_UUID" ]]; then
+  echo "Error: could not parse module UUID from $MOD_ROOT/meta.lsx" >&2
+  exit 1
+fi
+
 mkdir -p "$OUT_DIR"
 MOD_ROOT="$(realpath "$MOD_ROOT")"
 OUT_DIR="$(realpath "$OUT_DIR")"
@@ -147,7 +153,7 @@ fi
 # Build from a canonical BG3 package layout:
 #   Mods/<ModName>/meta.lsx
 #   Public/<ModName>/...
-#   ScriptExtender/...
+#   Mods/<ModName>/ScriptExtender/...
 if [[ -f "$MOD_ROOT/meta.lsx" ]]; then
   cp "$MOD_ROOT/meta.lsx" "$STAGE_DIR/Mods/$MOD_NAME/meta.lsx"
 fi
@@ -155,7 +161,7 @@ if [[ -d "$MOD_ROOT/Public" ]]; then
   cp -a "$MOD_ROOT/Public" "$STAGE_DIR/Public"
 fi
 if [[ -d "$MOD_ROOT/ScriptExtender" ]]; then
-  cp -a "$MOD_ROOT/ScriptExtender" "$STAGE_DIR/ScriptExtender"
+  cp -a "$MOD_ROOT/ScriptExtender" "$STAGE_DIR/Mods/$MOD_NAME/ScriptExtender"
 fi
 if [[ -d "$MOD_ROOT/Localization" ]]; then
   cp -a "$MOD_ROOT/Localization" "$STAGE_DIR/Localization"

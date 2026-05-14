@@ -1,5 +1,11 @@
 local NULL_GUID = "NULL_00000000-0000-0000-0000-000000000000"
 
+local function trace(msg)
+  if Ext and Ext.Utils and Ext.Utils.PrintWarning then
+    Ext.Utils.PrintWarning("[StandPrototype] " .. tostring(msg))
+  end
+end
+
 local function resolveSource(primary, fallback)
   if primary and primary ~= "" and primary ~= NULL_GUID then
     return primary
@@ -10,19 +16,43 @@ local function resolveSource(primary, fallback)
   return nil
 end
 
-Ext.Osiris.RegisterListener("UsingSpell", 5, "after", function(caster, spell, spellType, spellElement, storyActionId)
+local function handleStandSpell(caster, spell)
+  local ok, err
+  local owner = StandSystem.GetOwnerForEntity(caster)
+  local controlTarget = owner or caster
   if spell == "Target_Stand_Manifest" then
-    StandSystem.Manifest(caster)
+    ok, err = pcall(StandSystem.Manifest, caster)
   elseif spell == "Target_Stand_Withdraw" then
-    StandSystem.Withdraw(caster)
+    ok, err = pcall(StandSystem.Withdraw, caster)
   elseif spell == "Target_Stand_Reposition" then
-    StandSystem.Reposition(caster)
+    ok, err = pcall(StandSystem.Reposition, controlTarget)
   elseif spell == "Target_Stand_Intercept" then
-    Osi.ApplyStatus(caster, "STAND_INTERCEPT_READY", 6.0, 1, caster)
+    ok, err = pcall(Osi.ApplyStatus, controlTarget, "STAND_INTERCEPT_READY", 6.0, 1, caster)
   elseif spell == "Target_Stand_CombatPrediction" then
-    Osi.ApplyStatus(caster, "STAND_PREDICTION_EDGE", 12.0, 1, caster)
+    ok, err = pcall(Osi.ApplyStatus, controlTarget, "STAND_PREDICTION_EDGE", 12.0, 1, caster)
   elseif spell == "Target_Stand_TimeStop" then
-    StandSystem.TriggerTimeStop(caster)
+    ok, err = pcall(StandSystem.TriggerTimeStop, controlTarget)
+  else
+    return
+  end
+
+  if not ok then
+    trace("Spell handler error spell=[" .. tostring(spell) .. "] caster=[" .. tostring(caster) .. "] err=[" .. tostring(err) .. "]")
+    if spell == "Target_Stand_Manifest" then
+      pcall(Osi.ApplyStatus, caster, "STAND_MANIFEST_BLOCKED", 6.0, 1, caster)
+    end
+  end
+end
+
+Ext.Osiris.RegisterListener("UsingSpell", 5, "after", function(caster, spell, spellType, spellElement, storyActionId)
+  handleStandSpell(caster, spell)
+end)
+
+Ext.Osiris.RegisterListener("CastSpellFailed", 5, "after", function(caster, spell, spellType, spellElement, storyActionId)
+  -- Some custom shout actions fail engine prechecks in edge cases;
+  -- keep core Stand loop responsive by handling manifest/withdraw fallbacks.
+  if spell == "Target_Stand_Manifest" or spell == "Target_Stand_Withdraw" then
+    handleStandSpell(caster, spell)
   end
 end)
 

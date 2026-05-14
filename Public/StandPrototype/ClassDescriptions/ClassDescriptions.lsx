@@ -8,7 +8,7 @@
           <attribute id="BaseHp" type="int32" value="8" />
           <attribute id="CanLearnSpells" type="bool" value="false" />
           <attribute id="CharacterCreationPose" type="guid" value="0f07ec6e-4ef0-434e-9a51-1353260ccff8" />
-          <attribute id="ClassEquipment" type="FixedString" value="EQP_CC_Monk" />
+          <attribute id="ClassEquipment" type="FixedString" value="EQP_CC_StandUser" />
           <attribute id="ClassHotbarColumns" type="int32" value="5" />
           <attribute id="CommonHotbarColumns" type="int32" value="9" />
           <attribute id="Description" type="TranslatedString" handle="h4f6dfd10g4ca5g4b2fg8c76g1df52ef9c8c1" version="1" />

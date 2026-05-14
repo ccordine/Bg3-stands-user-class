@@ -7,6 +7,8 @@ StandSystem.StandOwner = {}
 StandSystem.UserArcana = {}
 StandSystem.UserProgression = {}
 
+local NULL_GUID = "NULL_00000000-0000-0000-0000-000000000000"
+
 local MIRRORABLE_STATUSES = {
   BURNING = true,
   BLEEDING = true,
@@ -17,11 +19,41 @@ local MIRRORABLE_STATUSES = {
   STUNNED = true
 }
 
+local STAND_WEAPON_SLOTS = {
+  "Weapon",
+  "Shield",
+  "Melee Main Weapon",
+  "Melee Offhand Weapon",
+  "Ranged Main Weapon",
+  "Ranged Offhand Weapon"
+}
+
+local USER_FORBIDDEN_STAND_SPELLS = {
+  "Target_Stand_Barrage",
+  "Target_Stand_HeavyPunch",
+  "Target_Stand_Intercept",
+  "Target_Stand_PrecisionCounter",
+  "Target_Stand_LeapCloser",
+  "Target_Stand_StarFinger",
+  "Target_Stand_RushUltimate",
+  "Target_Stand_TimeStop"
+}
+
 local function ensureTables()
   StandSystem.Active = StandSystem.Active or {}
   StandSystem.StandOwner = StandSystem.StandOwner or {}
   StandSystem.UserArcana = StandSystem.UserArcana or {}
   StandSystem.UserProgression = StandSystem.UserProgression or {}
+end
+
+local function isValidGuid(guid)
+  return guid and guid ~= "" and guid ~= NULL_GUID
+end
+
+local function trace(msg)
+  if Ext and Ext.Utils and Ext.Utils.PrintWarning then
+    Ext.Utils.PrintWarning("[StandPrototype] " .. tostring(msg))
+  end
 end
 
 local function getDistance(a, b)
@@ -104,6 +136,77 @@ local function isWearingArmor(user)
   return armorTagged == 1
 end
 
+local function unequipIfEquipped(character, itemGuid)
+  if not isValidGuid(itemGuid) then
+    return
+  end
+  pcall(Osi.Unequip, character, itemGuid)
+end
+
+local function enforceCharacterUnarmed(character)
+  for _, slot in ipairs(STAND_WEAPON_SLOTS) do
+    local ok, itemGuid = pcall(Osi.GetEquippedItem, character, slot)
+    if ok and isValidGuid(itemGuid) then
+      unequipIfEquipped(character, itemGuid)
+    end
+  end
+
+  local okWeapon, weaponGuid = pcall(Osi.GetEquippedWeapon, character)
+  if okWeapon and isValidGuid(weaponGuid) then
+    unequipIfEquipped(character, weaponGuid)
+  end
+
+  local okShield, shieldGuid = pcall(Osi.GetEquippedShield, character)
+  if okShield and isValidGuid(shieldGuid) then
+    unequipIfEquipped(character, shieldGuid)
+  end
+end
+
+local function removeSpellSafe(character, spell)
+  local ok = pcall(Osi.RemoveSpell, character, spell, 1)
+  if not ok then
+    pcall(Osi.RemoveSpell, character, spell)
+  end
+end
+
+local function enforceUserCommandOnlySpellbook(user)
+  for _, spell in ipairs(USER_FORBIDDEN_STAND_SPELLS) do
+    removeSpellSafe(user, spell)
+  end
+end
+
+local function grantStandTierSpells(user, stand, def)
+  local level = StandSystem.GetUserStandProgressLevel(user)
+  for _, unlockLevel in ipairs(sortedKeys(def.progression)) do
+    if unlockLevel <= level then
+      local tier = def.progression[unlockLevel]
+      if tier.standSpells then
+        for _, spell in ipairs(tier.standSpells) do
+          Osi.AddSpell(stand, spell, 1, 0)
+        end
+      end
+    end
+  end
+end
+
+local function tryCreateStand(template, user, x, y, z)
+  if not template or template == "" then
+    return nil, "template_empty"
+  end
+
+  local okCreateAt, created = pcall(Osi.CreateAt, template, x + 1.2, y, z, 1, 0, "")
+  if okCreateAt and isValidGuid(created) then
+    return created, "CreateAt"
+  end
+
+  local okCreateAtObject, createdAtObject = pcall(Osi.CreateAtObject, template, user, 1, 0, "", 1)
+  if okCreateAtObject and isValidGuid(createdAtObject) then
+    return createdAtObject, "CreateAtObject"
+  end
+
+  return nil, "spawn_failed"
+end
+
 function StandSystem.RefreshUnarmoredDiscipline(user)
   if not isStandUser(user) then
     return
@@ -125,6 +228,8 @@ function StandSystem.RefreshStandDerivedBonuses(user)
   end
 
   local stand = state.stand
+  local def = StandSystem.GetDefinition(user)
+  local standLevel = StandSystem.GetUserStandProgressLevel(user)
   local strMod = getAbilityMod(user, "Strength")
   local dexMod = getAbilityMod(user, "Dexterity")
   local conMod = getAbilityMod(user, "Constitution")
@@ -146,6 +251,9 @@ function StandSystem.RefreshStandDerivedBonuses(user)
   Osi.RemoveStatus(stand, "STAND_DERIVED_ALERT_INITIATIVE")
   Osi.RemoveStatus(stand, "STAND_DERIVED_MOBILE_SURGE")
   Osi.RemoveStatus(stand, "STAND_DERIVED_TAVERN_PRESSURE")
+  Osi.RemoveStatus(stand, "STAND_DERIVED_STAR_PLATINUM_GUARD_BASE")
+  Osi.RemoveStatus(stand, "STAND_DERIVED_STAR_PLATINUM_GUARD_MID")
+  Osi.RemoveStatus(stand, "STAND_DERIVED_STAR_PLATINUM_GUARD_LATE")
 
   if hasAnyPassive(user, {"Alert", "ALERT"}) then
     Osi.ApplyStatus(stand, "STAND_DERIVED_ALERT_INITIATIVE", -1.0, 1, user)
@@ -155,6 +263,22 @@ function StandSystem.RefreshStandDerivedBonuses(user)
   end
   if state.tavernBrawler then
     Osi.ApplyStatus(stand, "STAND_DERIVED_TAVERN_PRESSURE", -1.0, 1, user)
+  end
+
+  if def and def.forceUnarmed then
+    enforceCharacterUnarmed(stand)
+  end
+
+  if def and def.id == "the_star" then
+    if (def.baseStandACBonus or 0) > 0 then
+      Osi.ApplyStatus(stand, "STAND_DERIVED_STAR_PLATINUM_GUARD_BASE", -1.0, 1, user)
+    end
+    if standLevel >= 6 and (def.midStandACBonus or 0) > 0 then
+      Osi.ApplyStatus(stand, "STAND_DERIVED_STAR_PLATINUM_GUARD_MID", -1.0, 1, user)
+    end
+    if standLevel >= 10 and (def.lateStandACBonus or 0) > 0 then
+      Osi.ApplyStatus(stand, "STAND_DERIVED_STAR_PLATINUM_GUARD_LATE", -1.0, 1, user)
+    end
   end
 end
 
@@ -197,6 +321,11 @@ end
 function StandSystem.GetDefinition(user)
   local arcana = StandSystem.ResolveArcana(user)
   return StandDefinitions.Arcana[arcana] or StandDefinitions.Arcana[StandDefinitions.Core.defaultArcana]
+end
+
+function StandSystem.GetOwnerForEntity(entity)
+  ensureTables()
+  return StandSystem.StandOwner[entity]
 end
 
 function StandSystem.CleanupStaleState(user, reason)
@@ -259,12 +388,20 @@ function StandSystem.ApplyProgression(user)
     end
   end
 
+  enforceUserCommandOnlySpellbook(user)
+
+  local state = getUserState(user)
+  if state and state.stand and isValidGuid(state.stand) then
+    grantStandTierSpells(user, state.stand, def)
+  end
+
   StandSystem.RefreshUnarmoredDiscipline(user)
 end
 
 function StandSystem.Manifest(user)
   ensureTables()
   if not isStandUser(user) then
+    trace("Manifest aborted: caster is not a stand user [" .. tostring(user) .. "]")
     return
   end
   StandSystem.ApplyProgression(user)
@@ -273,23 +410,69 @@ function StandSystem.Manifest(user)
     return
   end
 
-  -- Combat-first framework: manifestation is restricted to active combat.
-  if Osi.IsInCombat(user) ~= 1 then
+  local inCombat = Osi.IsInCombat(user) == 1
+
+  local def = StandSystem.GetDefinition(user)
+  local _, x, y, z = pcall(Osi.GetPosition, user)
+  if not x then
+    trace("Manifest aborted: no valid user position [" .. tostring(user) .. "]")
+    return
+  end
+
+  if Osi.HasActiveStatus(user, "TUT_SUMMON_BLOCK") == 1 then
+    Osi.RemoveStatus(user, "TUT_SUMMON_BLOCK")
+  end
+
+  -- BG3 hack: stock humanoid template until dedicated Stand asset is authored.
+  local templates = {}
+  if type(def.summonTemplates) == "table" then
+    for _, t in ipairs(def.summonTemplates) do
+      if t and t ~= "" then
+        table.insert(templates, t)
+      end
+    end
+  end
+  if def.summonTemplate and def.summonTemplate ~= "" then
+    table.insert(templates, def.summonTemplate)
+  end
+  if def.allowUserTemplateFallback ~= false then
+    local okTemplate, userTemplate = pcall(Osi.GetTemplate, user)
+    if okTemplate and userTemplate and userTemplate ~= "" then
+      table.insert(templates, userTemplate)
+    end
+  end
+
+  -- De-duplicate while preserving priority order.
+  local dedup = {}
+  local uniqueTemplates = {}
+  for _, t in ipairs(templates) do
+    if not dedup[t] then
+      dedup[t] = true
+      table.insert(uniqueTemplates, t)
+    end
+  end
+  templates = uniqueTemplates
+
+  local stand = nil
+  local spawnMethod = "none"
+  local usedTemplate = "none"
+  for _, template in ipairs(templates) do
+    local created, method = tryCreateStand(template, user, x, y, z)
+    if created then
+      stand = created
+      spawnMethod = method
+      usedTemplate = template
+      break
+    end
+  end
+
+  if not isValidGuid(stand) then
+    trace("Manifest failed: no stand created for user [" .. tostring(user) .. "]")
     Osi.ApplyStatus(user, "STAND_MANIFEST_BLOCKED", 6.0, 1, user)
     return
   end
 
-  local def = StandSystem.GetDefinition(user)
-  local x, y, z = Osi.GetPosition(user)
-  if not x then
-    return
-  end
-
-  -- BG3 hack: stock humanoid template until dedicated Stand asset is authored.
-  local stand = Osi.CreateAt(def.summonTemplate, x + 1.2, y, z, 1, 0, "")
-  if not stand then
-    return
-  end
+  trace("Manifest succeeded via " .. tostring(spawnMethod) .. " template=[" .. tostring(usedTemplate) .. "] stand=[" .. tostring(stand) .. "] user=[" .. tostring(user) .. "]")
 
   StandSystem.Active[user] = {
     stand = stand,
@@ -305,25 +488,23 @@ function StandSystem.Manifest(user)
 
   Osi.SetFaction(stand, Osi.GetFaction(user))
   Osi.SetCanJoinCombat(stand, 1)
+  -- Force player-facing identity away from source template names like "Specter".
+  pcall(Osi.SetStoryDisplayName, stand, "h4e09986egf919g4605gb7f5g62cf7b2a6e54")
+  if def.forceUnarmed then
+    enforceCharacterUnarmed(stand)
+  end
+  pcall(Osi.SetTag, stand, "SUMMON")
   pcall(Osi.AddPartyFollower, stand, user)
-  pcall(Osi.JoinCombat, stand, user)
+  if inCombat then
+    pcall(Osi.JoinCombat, stand, user)
+  end
 
   Osi.ApplyStatus(user, "STAND_USER_ACTIVE", -1, 1, stand)
   Osi.ApplyStatus(stand, "STAND_ENTITY_ACTIVE", -1, 1, user)
   Osi.ApplyStatus(user, "STAND_SPIRITUAL_LINK", -1, 1, stand)
   Osi.ApplyStatus(user, "STAND_VISION", -1, 1, stand)
 
-  local level = StandSystem.GetUserStandProgressLevel(user)
-  for _, unlockLevel in ipairs(sortedKeys(def.progression)) do
-    if unlockLevel <= level then
-      local tier = def.progression[unlockLevel]
-      if tier.standSpells then
-        for _, spell in ipairs(tier.standSpells) do
-          Osi.AddSpell(stand, spell, 1, 0)
-        end
-      end
-    end
-  end
+  grantStandTierSpells(user, stand, def)
 
   StandSystem.RefreshStandDerivedBonuses(user)
 end

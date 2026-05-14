@@ -17,7 +17,19 @@ StandDefinitions = {
       id = "the_star",
       displayName = "The Star",
       archetype = "CloseRangePowerStand",
-      summonTemplate = "S_GOB_Barbarian_A_4f5403e2-6f2f-4c74-9f4a-8a4ef2db5c1a",
+      -- Prefer ghostly humanoid templates to keep a stand-like projection body.
+      summonTemplates = {
+        "Shadow_Wraith_A_066133a8-5dce-4636-8ba1-13efb1140c54",
+        "S_WYR_Gortash_Office_BaneGhost_08_027d8705-11bb-4697-8d3f-8918554ff45f"
+      },
+      summonTemplate = "Shadow_Wraith_A_066133a8-5dce-4636-8ba1-13efb1140c54",
+      -- Reliability fallback: if no spectral template resolves in this patch level,
+      -- use the user template so manifest never hard-fails.
+      allowUserTemplateFallback = true,
+      forceUnarmed = true,
+      baseStandACBonus = 3,
+      midStandACBonus = 1,
+      lateStandACBonus = 1,
       rangeProfile = {
         tetherRange = 12.0,
         breakBehavior = "AutoReturn"
@@ -40,7 +52,8 @@ StandDefinitions = {
         },
         [6] = {
           standSpells = {
-            "Target_Stand_LeapCloser"
+            "Target_Stand_LeapCloser",
+            "Target_Stand_StarFinger"
           },
           passives = { "STAND_USER_THE_STAR_TIER_MID" }
         },
@@ -51,7 +64,7 @@ StandDefinitions = {
           passives = { "STAND_USER_THE_STAR_TIER_LATE" }
         },
         [12] = {
-          userSpells = { "Target_Stand_TimeStop" },
+          standSpells = { "Target_Stand_TimeStop" },
           passives = { "STAND_USER_THE_STAR_CAPSTONE" }
         }
       }

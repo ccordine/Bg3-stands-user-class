@@ -34,6 +34,9 @@ Then build with:
 `WINEPREFIX=$HOME/.wine-divine DIVINE_BACKEND=wine ./scripts/build.sh`
 3. Install package into BG3 `Mods`:
 `./scripts/install.sh --build-if-missing`
+   - Proton note: use the compatdata profile directory as config root, not the legacy native path.
+     Example:
+     `./scripts/install.sh --build-if-missing --bg3-config "$HOME/.local/share/Steam/steamapps/compatdata/1086940/pfx/drive_c/users/steamuser/AppData/Local/Larian Studios/Baldur's Gate 3"`
 4. Add/enable module entry in `modsettings.lsx`:
 `./scripts/enable-modsettings.sh`
 5. Optional but recommended for runtime Lua mechanics: install BG3 Script Extender and ensure `ScriptExtender/Lua/BootstrapServer.lua` loads.

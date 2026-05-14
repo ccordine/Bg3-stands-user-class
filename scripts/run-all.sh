@@ -43,6 +43,7 @@ fi
 cd "$MOD_ROOT"
 STAGE_DIR="$MOD_ROOT/dist/.build_stage.${USER:-user}"
 mkdir -p "$STAGE_DIR"
+MODULE_UUID="$(sed -n 's/.*id="UUID" type="FixedString" value="\([^"]*\)".*/\1/p' "$MOD_ROOT/meta.lsx" | head -n1)"
 
 echo "[1/5] Static validation"
 ./scripts/validate_static.py
@@ -78,8 +79,9 @@ if [[ -d Public ]]; then
   cp -a Public "$STAGE_DIR/Public"
 fi
 if [[ -d ScriptExtender ]]; then
-  rm -rf "$STAGE_DIR/ScriptExtender" 2>/dev/null || true
-  cp -a ScriptExtender "$STAGE_DIR/ScriptExtender"
+  rm -rf "$STAGE_DIR/Mods/StandPrototype/ScriptExtender" 2>/dev/null || true
+  mkdir -p "$STAGE_DIR/Mods/StandPrototype"
+  cp -a ScriptExtender "$STAGE_DIR/Mods/StandPrototype/ScriptExtender"
 fi
 if [[ -d Assets ]]; then
   rm -rf "$STAGE_DIR/Assets" 2>/dev/null || true

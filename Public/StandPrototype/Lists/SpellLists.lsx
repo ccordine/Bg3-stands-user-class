@@ -6,32 +6,32 @@
       <children>
         <node id="SpellList">
           <attribute id="Name" type="FixedString" value="Stand User level 1 core actions" />
-          <attribute id="Spells" type="LSString" value="Target_Stand_Manifest;Target_Stand_Withdraw;Target_Stand_Barrage;Target_Stand_Intercept;Target_Stand_Reposition" />
+          <attribute id="Spells" type="LSString" value="Target_Stand_Manifest;Target_Stand_Withdraw" />
           <attribute id="UUID" type="guid" value="a6f8f7c9-8475-46f5-9f7f-24f9dcb7c9a1" />
         </node>
         <node id="SpellList">
           <attribute id="Name" type="FixedString" value="Stand User level 2 core actions" />
-          <attribute id="Spells" type="LSString" value="Target_Stand_HeavyPunch;Target_Stand_CombatPrediction" />
+          <attribute id="Spells" type="LSString" value="Target_Stand_Reposition;Target_Stand_CombatPrediction" />
           <attribute id="UUID" type="guid" value="5e6b735e-7f23-4a8a-b18f-a88f38ab7ec6" />
         </node>
         <node id="SpellList">
           <attribute id="Name" type="FixedString" value="The Star level 3 feature" />
-          <attribute id="Spells" type="LSString" value="Target_Stand_PrecisionCounter" />
+          <attribute id="Spells" type="LSString" value="" />
           <attribute id="UUID" type="guid" value="95b74e7f-7449-4b18-8bd9-4415f793bcee" />
         </node>
         <node id="SpellList">
           <attribute id="Name" type="FixedString" value="The Star level 6 feature" />
-          <attribute id="Spells" type="LSString" value="Target_Stand_LeapCloser" />
+          <attribute id="Spells" type="LSString" value="" />
           <attribute id="UUID" type="guid" value="a72e57d5-2206-4ea2-af9d-801721f5ef4e" />
         </node>
         <node id="SpellList">
           <attribute id="Name" type="FixedString" value="The Star level 10 feature" />
-          <attribute id="Spells" type="LSString" value="Target_Stand_RushUltimate" />
+          <attribute id="Spells" type="LSString" value="" />
           <attribute id="UUID" type="guid" value="749e0e73-932c-4dbf-84f5-6e7cf588fe8a" />
         </node>
         <node id="SpellList">
           <attribute id="Name" type="FixedString" value="The Star level 12 feature" />
-          <attribute id="Spells" type="LSString" value="Target_Stand_TimeStop" />
+          <attribute id="Spells" type="LSString" value="" />
           <attribute id="UUID" type="guid" value="13c09535-b142-4538-8ac2-45d820359d8c" />
         </node>
       </children>

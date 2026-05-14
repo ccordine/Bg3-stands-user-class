@@ -2,6 +2,10 @@ Ext.Require("StandFramework/StandDefinitions.lua")
 Ext.Require("StandFramework/StandSystem.lua")
 Ext.Require("StandFramework/SpellHandlers.lua")
 
+if Ext and Ext.Utils and Ext.Utils.PrintWarning then
+  Ext.Utils.PrintWarning("[StandPrototype] BootstrapServer loaded")
+end
+
 local CLASS_LOCA_OVERRIDES = {
   h4f6dfd10g4ca5g4b2fg8c76g1df52ef9c8c1 = "A spiritual close-range martial class. Stand Users rely on presence, reflexes, and force of will rather than armor. At level 3, choose an Arcana path to manifest a combat Stand with linked-risk tether mechanics.",
   h1a91b8c8g7d65g4c7eg9f1ag36640f1499ef = "Stand User",
