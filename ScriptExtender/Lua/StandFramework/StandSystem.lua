@@ -30,12 +30,20 @@ local STAND_WEAPON_SLOTS = {
   "Ranged Offhand Weapon"
 }
 
+local STAND_SPAWN_OFFSETS = {
+  { 1.2, 0.0 },
+  { -1.2, 0.0 },
+  { 0.0, 1.2 },
+  { 0.0, -1.2 },
+  { 2.4, 0.0 },
+  { -2.4, 0.0 },
+  { 0.0, 2.4 },
+  { 0.0, -2.4 }
+}
+
 local USER_FORBIDDEN_STAND_SPELLS = {
   "Target_Stand_Barrage",
-  "Target_Stand_HeavyPunch",
   "Target_Stand_Intercept",
-  "Target_Stand_PrecisionCounter",
-  "Target_Stand_LeapCloser",
   "Target_Stand_Rush",
   "Target_Stand_StarFinger",
   "Target_Stand_RelentlessBarrage",
@@ -117,6 +125,16 @@ end
 
 local function isValidGuid(guid)
   return guid and guid ~= "" and guid ~= NULL_GUID
+end
+
+local function isBareGuid(value)
+  return type(value) == "string"
+    and value:match("^%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x$") ~= nil
+end
+
+local function isOfficialRootTemplateId(value)
+  return type(value) == "string"
+    and value:match("^[%w_]+_%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x$") ~= nil
 end
 
 local function trace(msg)
@@ -721,13 +739,33 @@ local function tryCreateStand(template, user, x, y, z)
     return nil, "template_empty"
   end
 
-  logInfo("tryCreateStand start template=[" .. tostring(template) .. "] user=[" .. tostring(user) .. "] pos=[" .. tostring(x) .. "," .. tostring(y) .. "," .. tostring(z) .. "]")
-  local okCreateAt, created = pcall(Osi.CreateAt, template, x + 1.2, y, z, 1, 0, "")
-  if okCreateAt and isValidGuid(created) then
-    logInfo("tryCreateStand CreateAt succeeded template=[" .. tostring(template) .. "] created=[" .. tostring(created) .. "]")
-    return created, "CreateAt"
+  if isBareGuid(template) then
+    logError(
+      "tryCreateStand received bare GUID template id; BG3 CreateAt expects root-template Name_UUID"
+        .. " template=[" .. tostring(template) .. "]"
+        .. " user=[" .. tostring(user) .. "]"
+    )
+  elseif not isOfficialRootTemplateId(template) then
+    logWarn(
+      "tryCreateStand received nonstandard template id; expected root-template Name_UUID"
+        .. " template=[" .. tostring(template) .. "]"
+        .. " user=[" .. tostring(user) .. "]"
+    )
   end
-  logWarn("tryCreateStand CreateAt failed template=[" .. tostring(template) .. "] ok=[" .. tostring(okCreateAt) .. "] result=[" .. tostring(created) .. "]")
+
+  logInfo("tryCreateStand start template=[" .. tostring(template) .. "] user=[" .. tostring(user) .. "] pos=[" .. tostring(x) .. "," .. tostring(y) .. "," .. tostring(z) .. "]")
+  local createAtResults = {}
+  for attempt, offset in ipairs(STAND_SPAWN_OFFSETS) do
+    local sx = x + offset[1]
+    local sz = z + offset[2]
+    local okCreateAt, created = pcall(Osi.CreateAt, template, sx, y, sz, 1, 0, "")
+    table.insert(createAtResults, "#" .. tostring(attempt) .. ":" .. tostring(okCreateAt) .. ":" .. tostring(created) .. "@(" .. tostring(sx) .. "," .. tostring(y) .. "," .. tostring(sz) .. ")")
+    if okCreateAt and isValidGuid(created) then
+      logInfo("tryCreateStand CreateAt succeeded template=[" .. tostring(template) .. "] attempt=[" .. tostring(attempt) .. "] created=[" .. tostring(created) .. "]")
+      return created, "CreateAt"
+    end
+  end
+  logWarn("tryCreateStand CreateAt failed all offsets template=[" .. tostring(template) .. "] results=[" .. table.concat(createAtResults, ";") .. "]")
 
   local okCreateAtObject, createdAtObject = pcall(Osi.CreateAtObject, template, user, 1, 0, "", 1)
   if okCreateAtObject and isValidGuid(createdAtObject) then
@@ -738,7 +776,7 @@ local function tryCreateStand(template, user, x, y, z)
 
   logError(
     "Template spawn failed template=[" .. tostring(template)
-    .. "] CreateAt=[" .. tostring(okCreateAt) .. ":" .. tostring(created)
+    .. "] CreateAtOffsets=[" .. table.concat(createAtResults, ";")
     .. "] CreateAtObject=[" .. tostring(okCreateAtObject) .. ":" .. tostring(createdAtObject) .. "]"
   )
   return nil, "spawn_failed"

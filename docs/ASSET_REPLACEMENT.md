@@ -35,7 +35,7 @@ Safe existing icon usage remains in stats records (`Skill_*` icons). Replace lat
 ## Replace Later
 1. Replace file contents while keeping filenames the same for external pipeline stability.
 2. If you change filenames, update references in your toolkit/import mapping.
-3. For stand model replacement, update `summonTemplate` UUID in:
+3. For stand model replacement, update the root template and the matching `summonTemplate`/`entityTemplate` in official `Name_UUID` format in:
    - `ScriptExtender/Lua/StandFramework/StandDefinitions.lua`
 
 ## Naming Policy

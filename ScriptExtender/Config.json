@@ -1,5 +1,5 @@
 {
-  "RequiredVersion": 1,
+  "RequiredVersion": 29,
   "ModTable": "StandPrototype",
   "FeatureFlags": ["Lua"]
 }

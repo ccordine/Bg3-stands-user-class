@@ -82,6 +82,18 @@ if [[ -z "$DIVINE_BIN" || ! -x "$DIVINE_BIN" ]]; then
   exit 1
 fi
 
+CONVERT_DIVINE_BIN="${CONVERT_DIVINE_BIN:-}"
+if [[ -n "$CONVERT_DIVINE_BIN" && ! -x "$CONVERT_DIVINE_BIN" ]]; then
+  CONVERT_DIVINE_BIN=""
+fi
+if [[ -z "$CONVERT_DIVINE_BIN" ]]; then
+  if [[ -x "$MOD_ROOT/../lslib/Divine/bin/Release/net8.0/Divine" ]]; then
+    CONVERT_DIVINE_BIN="$MOD_ROOT/../lslib/Divine/bin/Release/net8.0/Divine"
+  else
+    CONVERT_DIVINE_BIN="$DIVINE_BIN"
+  fi
+fi
+
 if [[ ! -f "$MOD_ROOT/meta.lsx" ]]; then
   echo "Error: meta.lsx not found at $MOD_ROOT/meta.lsx" >&2
   exit 1
@@ -169,6 +181,21 @@ fi
 if [[ -d "$MOD_ROOT/Assets" ]]; then
   cp -a "$MOD_ROOT/Assets" "$STAGE_DIR/Assets"
 fi
+
+convert_lsf_lsx_resources() {
+  local search_root="$1"
+  [[ -d "$search_root" ]] || return 0
+
+  while IFS= read -r -d '' src; do
+    local dst="${src%.lsx}"
+    echo "Converting LSX source resource: $src -> $dst" >&2
+    "$CONVERT_DIVINE_BIN" -a convert-resource -g bg3 -s "$src" -d "$dst" -i lsx -o lsf >/dev/null
+    rm -f "$src"
+  done < <(find "$search_root" -type f -name '*.lsf.lsx' -print0)
+}
+
+convert_lsf_lsx_resources "$STAGE_DIR/Public"
+find "$STAGE_DIR/Public" -path '*/RootTemplates/*.lsx' ! -name '*.lsf.lsx' -delete
 
 DIVINE_HELP="$("$DIVINE_BIN" --help 2>&1 || true)"
 HAS_GAME_DATA_FLAG=0

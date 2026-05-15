@@ -54,7 +54,7 @@ Add tier passives (`EARLY/MID/LATE/CAPSTONE`) and real SpellData entries used by
 ## 5. Add Concrete Stand Entity Data
 Create the concrete entity records before wiring runtime manifest:
 - `Public/StandPrototype/RootTemplates/StandPrototype_<StandName>.lsx`
-- `Public/StandPrototype/Stats/Generated/Data/StandPrototype_Characters.txt`
+- `Public/StandPrototype/Stats/Generated/Data/Character.txt`
 - `Localization/English/StandPrototype.xml`
 
 The root template `DisplayName` should point to the Stand localization handle, and the character/stat entry should unlock the Stand combat SpellData entries. The runtime should not need to rename normal Stand identities after spawn or build the primary spellbook after spawn.

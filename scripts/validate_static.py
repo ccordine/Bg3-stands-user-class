@@ -20,7 +20,7 @@ class_file = root / 'Public/StandPrototype/ClassDescriptions/ClassDescriptions.l
 prog_file = root / 'Public/StandPrototype/Progressions/Progressions.lsx'
 passive_file = root / 'Public/StandPrototype/Stats/Generated/Data/StandPrototype_Passives.txt'
 spell_file = root / 'Public/StandPrototype/Stats/Generated/Data/StandPrototype_Spells.txt'
-character_file = root / 'Public/StandPrototype/Stats/Generated/Data/StandPrototype_Characters.txt'
+character_file = root / 'Public/StandPrototype/Stats/Generated/Data/Character.txt'
 item_file = root / 'Public/StandPrototype/Stats/Generated/Data/StandPrototype_Items.txt'
 loca_file = root / 'Localization/English/StandPrototype.loca.xml'
 loca_xml_file = root / 'Localization/English/StandPrototype.xml'
@@ -35,6 +35,7 @@ spell_list_file = root / 'Public/StandPrototype/Lists/SpellLists.lsx'
 ability_preset_file = root / 'Public/StandPrototype/CharacterCreationPresets/AbilityDistributionPresets.lsx'
 star_platinum_template_file = root / 'Public/StandPrototype/RootTemplates/StandPrototype_StarPlatinum.lsx'
 base_stand_template_file = root / 'Public/StandPrototype/RootTemplates/StandPrototype_BaseStand.lsx'
+merged_root_template_source_file = root / 'Public/StandPrototype/RootTemplates/_merged.lsf.lsx'
 
 ok('ClassDescriptions exists', class_file.exists(), str(class_file))
 ok('Progressions exists', prog_file.exists(), str(prog_file))
@@ -43,6 +44,7 @@ ok('SpellLists exists', spell_list_file.exists(), str(spell_list_file))
 ok('AbilityDistributionPresets exists', ability_preset_file.exists(), str(ability_preset_file))
 ok('Star Platinum root template exists', star_platinum_template_file.exists(), str(star_platinum_template_file))
 ok('Base Stand root template exists', base_stand_template_file.exists(), str(base_stand_template_file))
+ok('Merged root template LSF source exists', merged_root_template_source_file.exists(), str(merged_root_template_source_file))
 ok('Star Platinum character stats exist', character_file.exists(), str(character_file))
 ok('StandPrototype item stats exist', item_file.exists(), str(item_file))
 ok('Compiled localization file exists (.loca)',
@@ -75,6 +77,7 @@ spl = spell_list_file.read_text() if spell_list_file.exists() else ''
 ap = ability_preset_file.read_text() if ability_preset_file.exists() else ''
 spt = star_platinum_template_file.read_text() if star_platinum_template_file.exists() else ''
 bst = base_stand_template_file.read_text() if base_stand_template_file.exists() else ''
+mrt = merged_root_template_source_file.read_text() if merged_root_template_source_file.exists() else ''
 
 # StandUser/TheStar records
 class_chunks = re.findall(r'<node id="ClassDescription">([\s\S]*?)</node>', c)
@@ -321,8 +324,6 @@ ok('Manifest and Withdraw are free actions',
 ok('Stand attack techniques use action economy',
    all(spell_has_use_cost(name, 'ActionPoint:1') for name in [
        'Target_Stand_Barrage',
-       'Target_Stand_HeavyPunch',
-       'Target_Stand_LeapCloser',
        'Target_Stand_Rush',
        'Target_Stand_StarFinger',
        'Target_Stand_RelentlessBarrage',
@@ -339,15 +340,20 @@ ok('StandDefinitions has a generic BaseStand before subclass selection',
    'defaultArcana = "BaseStand"' in sd
    and 'BaseStand' in sd
    and 'standName = "Stand"' in base_stand_block
-   and 'summonTemplate = "72b4f830-2f41-4f50-8f80-0f7cc1383d01"' in base_stand_block
+   and 'summonTemplate = "STANDPROTOTYPE_BASE_STAND_72b4f830-2f41-4f50-8f80-0f7cc1383d01"' in base_stand_block
    and 'fallbackSummonTemplate' not in base_stand_block
    and '[1]' in base_stand_block
    and 'Target_Stand_Barrage' not in base_stand_block)
 ok('The Star subclass does not start as the default level 1 Stand',
    '[1]' not in the_star_block
    and 'standName = "Star Platinum"' in the_star_block
-   and 'summonTemplate = "6f8d9ac1-1d13-4cb4-aa64-85c2e2bc07c1"' in the_star_block
+   and 'summonTemplate = "STANDPROTOTYPE_STAR_PLATINUM_6f8d9ac1-1d13-4cb4-aa64-85c2e2bc07c1"' in the_star_block
    and 'fallbackSummonTemplate' not in the_star_block)
+ok('Stand summonTemplate values use official root-template Name_UUID format for CreateAt',
+   'summonTemplate = "STANDPROTOTYPE_BASE_STAND_72b4f830-2f41-4f50-8f80-0f7cc1383d01"' in sd
+   and 'entityTemplate = "STANDPROTOTYPE_BASE_STAND_72b4f830-2f41-4f50-8f80-0f7cc1383d01"' in sd
+   and 'summonTemplate = "STANDPROTOTYPE_STAR_PLATINUM_6f8d9ac1-1d13-4cb4-aa64-85c2e2bc07c1"' in sd
+   and 'entityTemplate = "STANDPROTOTYPE_STAR_PLATINUM_6f8d9ac1-1d13-4cb4-aa64-85c2e2bc07c1"' in sd)
 ok('TheStar has no fallbackSummonTemplate',
    'fallbackSummonTemplate' not in the_star_block)
 ok('TheStar does not reference stock strong-human fallback',
@@ -366,14 +372,17 @@ ok('StandDefinitions has requested Star Platinum stand action ids',
 ok('The Star static spell lists do not directly grant stand combat spells',
    not any(x in spl for x in [
        'Target_Stand_Barrage',
-       'Target_Stand_HeavyPunch',
        'Target_Stand_Intercept',
-       'Target_Stand_PrecisionCounter',
-       'Target_Stand_LeapCloser',
        'Target_Stand_Rush',
        'Target_Stand_StarFinger',
        'Target_Stand_RelentlessBarrage',
        'Target_Stand_TimeStop',
+   ]))
+ok('Obsolete Stand combat spell entries removed',
+   all(x not in sp and x not in sd and x not in ls for x in [
+       'Target_Stand_HeavyPunch',
+       'Target_Stand_PrecisionCounter',
+       'Target_Stand_LeapCloser',
    ]))
 ok('Obsolete RushUltimate spell entry removed',
    'Target_Stand_RushUltimate' not in sp
@@ -381,6 +390,22 @@ ok('Obsolete RushUltimate spell entry removed',
    and 'Target_Stand_RushUltimate' not in ls)
 ok('Runtime removes stand combat spells from the user spellbook',
    'enforceUserCommandOnlySpellbook' in ls and 'USER_FORBIDDEN_STAND_SPELLS' in ls)
+user_forbidden_match = re.search(r'USER_FORBIDDEN_STAND_SPELLS\s*=\s*\{([\s\S]*?)\n\}', ls)
+user_forbidden_block = user_forbidden_match.group(1) if user_forbidden_match else ''
+ok('Runtime user forbidden spell block only contains current Star combat actions',
+   all(x in user_forbidden_block for x in [
+       'Target_Stand_Barrage',
+       'Target_Stand_Intercept',
+       'Target_Stand_StarFinger',
+       'Target_Stand_Rush',
+       'Target_Stand_RelentlessBarrage',
+       'Target_Stand_TimeStop',
+   ])
+   and all(x not in user_forbidden_block for x in [
+       'Target_Stand_HeavyPunch',
+       'Target_Stand_PrecisionCounter',
+       'Target_Stand_LeapCloser',
+   ]))
 ok('Runtime does not grant player command spells redundantly',
    'Osi.AddSpell(user' not in ls
    and 'grantUserTierActions' not in ls)
@@ -539,6 +564,13 @@ ok('Base Stand root template uses dedicated generic stand body',
    and 'h00010001g0000g0000g0000g00000000009B' in bst
    and 'h00010001g0000g0000g0000g00000000009B' in loc
    and 'Stand' in loc)
+ok('Merged root template source contains both concrete stand character templates',
+   'Name" type="LSString" value="STANDPROTOTYPE_BASE_STAND"' in mrt
+   and 'MapKey" type="FixedString" value="72b4f830-2f41-4f50-8f80-0f7cc1383d01"' in mrt
+   and 'Stats" type="FixedString" value="STAND_BASE_BODY"' in mrt
+   and 'Name" type="LSString" value="STANDPROTOTYPE_STAR_PLATINUM"' in mrt
+   and 'MapKey" type="FixedString" value="6f8d9ac1-1d13-4cb4-aa64-85c2e2bc07c1"' in mrt
+   and 'Stats" type="FixedString" value="STAND_STAR_PLATINUM_BODY"' in mrt)
 ok('Star Platinum character stats are unarmed humanoid stand stats',
    'new entry "STAND_STAR_PLATINUM_BODY"' in char_stats
    and 'new entry "STAND_ENTITY_BODY_BASE"' in char_stats
@@ -547,15 +579,27 @@ ok('Star Platinum character stats are unarmed humanoid stand stats',
    and 'STAND_ENTITY_COMBAT_BODY' in char_stats
    and 'UnarmedAttackAbility" "Strength"' in char_stats
    and 'ActionResources" "ActionPoint:1;BonusActionPoint:1;ReactionActionPoint:1;Movement:9"' in char_stats)
+def stats_entry_block(text: str, entry_name: str) -> str:
+    match = re.search(rf'new entry "{re.escape(entry_name)}"\n([\s\S]*?)(?=\nnew entry "|\Z)', text)
+    return match.group(1) if match else ''
+
+star_platinum_stat_block = stats_entry_block(char_stats, 'STAND_STAR_PLATINUM_BODY')
+base_stand_stat_block = stats_entry_block(char_stats, 'STAND_BASE_BODY')
+star_combat_actions = [
+    'Target_Stand_Barrage',
+    'Target_Stand_Intercept',
+    'Target_Stand_StarFinger',
+    'Target_Stand_Rush',
+    'Target_Stand_RelentlessBarrage',
+    'Target_Stand_TimeStop',
+]
 ok('Star Platinum character stats own requested combat actions',
-   all(f'UnlockSpell({spell})' in char_stats for spell in [
-       'Target_Stand_Barrage',
-       'Target_Stand_Intercept',
-       'Target_Stand_StarFinger',
-       'Target_Stand_Rush',
-       'Target_Stand_RelentlessBarrage',
-       'Target_Stand_TimeStop',
-   ]))
+   star_platinum_stat_block != ''
+   and all(f'UnlockSpell({spell})' in star_platinum_stat_block for spell in star_combat_actions)
+   and all(f'UnlockSpell({spell})' not in base_stand_stat_block for spell in star_combat_actions))
+ok('Star Platinum combat actions are not only Lua standActions',
+   all(action in sd for action in star_combat_actions)
+   and all(f'UnlockSpell({action})' in star_platinum_stat_block for action in star_combat_actions))
 
 ok('Script Extender config exists', se_config.exists(), str(se_config))
 cfg_ok = False
