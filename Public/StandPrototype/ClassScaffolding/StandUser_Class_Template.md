@@ -1,6 +1,6 @@
 # Stand User Class/Subclass Toolkit Scaffolding
 
-This file is a concrete mapping for creating true BG3 toolkit class/subclass records that match this prototype runtime.
+This file is a concrete mapping for BG3 Toolkit class/subclass records that match the data-first Stand contract.
 
 ## Base Class
 - Class Internal Name: `StandUser`
@@ -9,21 +9,28 @@ This file is a concrete mapping for creating true BG3 toolkit class/subclass rec
 - Hit Die Suggestion: `d8`
 - Save Proficiencies Suggestion: `WIS`, `CHA`
 - Core Passive at Level 1: `STAND_USER_BASE_CLASS_PASSIVE`
+- Class Equipment: `EQP_CC_StandUser`
 - Core spells at Level 1:
   - `Target_Stand_Manifest`
   - `Target_Stand_Withdraw`
 
 ## Subclass Group (Arcana)
-Create subclass choice at class level 1 or 3 (recommended: 1 for prototype).
+Create subclass choice at class level 3.
 
 ### The Star
 - Subclass Internal Name: `StandUser_TheStar`
 - Grant passive: `STAND_SUBCLASS_THE_STAR`
 - Progression by class level:
-  - L1: `STAND_USER_THE_STAR_TIER_EARLY`
-  - L5: `STAND_USER_THE_STAR_TIER_MID`
-  - L9: `STAND_USER_THE_STAR_TIER_LATE`
+  - L3: `STAND_USER_THE_STAR_TIER_EARLY`
+  - L6: `STAND_USER_THE_STAR_TIER_MID`
+  - L10: `STAND_USER_THE_STAR_TIER_LATE`
   - L12: `STAND_USER_THE_STAR_CAPSTONE`
+
+## Stand Entity Contract
+- `TheStar.summonTemplate` must point to the concrete Star Platinum root template.
+- Do not add `fallbackSummonTemplate` or stock-body fallback paths.
+- Star Platinum combat actions belong on the concrete character/stat entry, not on player spell lists.
+- Lua may repair missing Stand actions with logged `AddSpell`, but that is not the primary spellbook source.
 
 ### Future Reserved
 - `StandUser_TheWorld` -> `STAND_SUBCLASS_THE_WORLD`

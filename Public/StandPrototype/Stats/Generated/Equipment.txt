@@ -1,5 +1,4 @@
 new equipment "EQP_CC_StandUser"
-add initialweaponset "Melee"
 add equipmentgroup
 add equipment entry "STANDUSER_FIELD_JACKET"
 add equipmentgroup

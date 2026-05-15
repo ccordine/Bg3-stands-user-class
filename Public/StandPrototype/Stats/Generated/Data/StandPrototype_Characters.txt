@@ -32,6 +32,7 @@ data "Constitution" "16"
 data "Wisdom" "12"
 data "Armor" "13"
 data "Vitality" "28"
+data "DefaultBoosts" "UnlockSpell(Target_Stand_Barrage);UnlockSpell(Target_Stand_Intercept);UnlockSpell(Target_Stand_StarFinger);UnlockSpell(Target_Stand_Rush);UnlockSpell(Target_Stand_RelentlessBarrage);UnlockSpell(Target_Stand_TimeStop)"
 
 new entry "STAND_BASE_BODY"
 type "Character"

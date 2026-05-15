@@ -116,6 +116,24 @@ ok(
     standuser_base_chunk != '' and all(f'id="{attr}"' in standuser_base_chunk for attr in required_standuser_attrs)
 )
 
+equipment_text = (root / 'Public/StandPrototype/Stats/Generated/Equipment.txt').read_text()
+equipment_names = set(re.findall(r'new equipment "([^"]+)"', equipment_text))
+class_equipment_values = re.findall(r'id="ClassEquipment"\s+type="FixedString"\s+value="([^"]+)"', c)
+standuser_class_equipment = re.search(r'id="ClassEquipment"\s+type="FixedString"\s+value="([^"]+)"', standuser_base_chunk)
+standuser_class_equipment = standuser_class_equipment.group(1) if standuser_class_equipment else ''
+ok('EQP_CC_StandUser equipment row exists', 'EQP_CC_StandUser' in equipment_names)
+ok('ClassEquipment points to existing equipment rows',
+   all(value in equipment_names for value in class_equipment_values),
+   f'classEquipment={class_equipment_values} equipment={sorted(equipment_names)}')
+ok('StandUser ClassEquipment is EQP_CC_StandUser',
+   standuser_class_equipment == 'EQP_CC_StandUser',
+   standuser_class_equipment)
+ok('Stand User equipment has clothing and no weapon set',
+   'add equipment entry "STANDUSER_FIELD_JACKET"' in equipment_text
+   and 'add equipment entry "STANDUSER_FIELD_BOOTS"' in equipment_text
+   and 'initialweaponset' not in equipment_text
+   and 'EQP_Unarmed' not in equipment_text)
+
 # Link proofs
 stand_user_uuid_match = re.search(r'id="UUID"\s+type="guid"\s+value="([^"]+)"', standuser_base_chunk)
 the_star_parent_match = re.search(r'id="ParentGuid"\s+type="guid"\s+value="([^"]+)"', the_star_chunk)
@@ -322,14 +340,18 @@ ok('StandDefinitions has a generic BaseStand before subclass selection',
    and 'BaseStand' in sd
    and 'standName = "Stand"' in base_stand_block
    and 'summonTemplate = "72b4f830-2f41-4f50-8f80-0f7cc1383d01"' in base_stand_block
-   and 'fallbackSummonTemplate = "BASE_Humans_Male_Strong_12c0a711-1459-48e2-a50e-7b792eee0918"' in base_stand_block
+   and 'fallbackSummonTemplate' not in base_stand_block
    and '[1]' in base_stand_block
    and 'Target_Stand_Barrage' not in base_stand_block)
 ok('The Star subclass does not start as the default level 1 Stand',
    '[1]' not in the_star_block
    and 'standName = "Star Platinum"' in the_star_block
    and 'summonTemplate = "6f8d9ac1-1d13-4cb4-aa64-85c2e2bc07c1"' in the_star_block
-   and 'fallbackSummonTemplate = "BASE_Humans_Male_Strong_12c0a711-1459-48e2-a50e-7b792eee0918"' in the_star_block)
+   and 'fallbackSummonTemplate' not in the_star_block)
+ok('TheStar has no fallbackSummonTemplate',
+   'fallbackSummonTemplate' not in the_star_block)
+ok('TheStar does not reference stock strong-human fallback',
+   'BASE_Humans_Male_Strong' not in the_star_block)
 ok('StandDefinitions keeps user actions separate from stand actions',
    'userActions' in sd and 'standActions' in sd and 'Target_Stand_Manifest' in sd and 'Target_Stand_Barrage' in sd)
 ok('StandDefinitions has requested Star Platinum stand action ids',
@@ -362,8 +384,42 @@ ok('Runtime removes stand combat spells from the user spellbook',
 ok('Runtime does not grant player command spells redundantly',
    'Osi.AddSpell(user' not in ls
    and 'grantUserTierActions' not in ls)
-ok('Runtime grants stand actions to active stand entity',
-   'grantStandTierSpells(user, state.stand, def)' in ls and 'collectActionsByLevel(def.standActions' in ls)
+ok('Runtime stand AddSpell path is named and logged as repair fallback',
+   'repairStandActionSpellbook(user, state.stand, def)' in ls
+   and 'collectActionsByLevel(def.standActions' in ls
+   and 'Runtime AddSpell repair fallback' in ls
+   and 'grantStandTierSpells' not in ls)
+warn('Runtime AddSpell remains as stand action repair fallback',
+     'Concrete template/stat ownership is primary; repairStandActionSpellbook logs every AddSpell repair.')
+ok('Runtime does not strip user weapons',
+   'enforceCharacterUnarmed(user)' not in ls
+   and 'enforceCharacterUnarmed(stand)' in ls)
+ok('Runtime has verbose diagnostic logging helpers',
+   'logInfo' in ls
+   and 'logWarn' in ls
+   and 'logError' in ls
+   and 'safeOsi' in ls
+   and 'statusSafe' in ls
+   and 'SNAPSHOT' in ls)
+ok('Manifest failures are loud and contextual',
+   all(fragment in ls for fragment in [
+       'manifest_non_stand_user',
+       'manifest_missing_template',
+       'manifest_fallback_guard',
+       'manifest_no_position',
+       'manifest_spawn_failed',
+       'Manifest failed: concrete stand template did not spawn',
+       'tryCreateStand CreateAt failed',
+       'tryCreateStand CreateAtObject failed',
+   ]))
+ok('Spell handlers log Stand events and failures',
+   all(fragment in (root / 'ScriptExtender/Lua/StandFramework/SpellHandlers.lua').read_text() for fragment in [
+       'UsingSpell event',
+       'CastSpellFailed event',
+       'handleStandSpell start',
+       'Spell handler error',
+       'AttackedBy event',
+   ]))
 ok('Runtime progression uses stand-user progression level helper (multiclass-safe gate)', 'GetUserStandProgressLevel' in ls)
 ok('Runtime has stale state cleanup helper', 'CleanupStaleState' in ls)
 ok('Runtime supports level 5 Star Finger gate', 'STAND_USER_LEVEL5_DISCIPLINE_NOTE' in ls and 'return 5' in ls)
@@ -378,7 +434,6 @@ ok('Runtime does not mirror arbitrary user spells to stand',
    'syncUserSpellsToStand' not in ls
    and 'shouldMirrorUserSpell' not in ls
    and 'LearnedSpells' not in ls)
-equipment_text = (root / 'Public/StandPrototype/Stats/Generated/Equipment.txt').read_text()
 standuser_equipment_ids = [
     'STANDUSER_FIELD_JACKET',
     'STANDUSER_FIELD_BOOTS',
@@ -439,7 +494,7 @@ ok('Star Platinum has its own display-name handle',
    'h00010001g0000g0000g0000g00000000009A' in loc
    and 'Star Platinum' in loc
    and 'applyStandDisplayName' in ls
-   and 'runtime override skipped' in ls
+   and 'runtimeApplied=' in ls
    and 'DisplayName" type="TranslatedString" handle="h00010001g0000g0000g0000g00000000009A"' in spt)
 ok('ORA Barrage is a fast multi-hit action',
    'new entry "Target_Stand_Barrage"' in sp
@@ -450,16 +505,16 @@ ok('Runtime strips inherited Specter/Wraith spell kit from the stand',
    and 'inheritedSpellBlocklist' in sd
    and 'Target_LifeDrain_Wraith' in ls
    and 'Target_CreateShadow_Wraith' in sd)
-ok('The Star falls back only to the stock strong-human body, not user or Specter templates',
+ok('The Star has no generic fallback body path',
    'allowUserTemplateFallback' not in sd
    and 'summonTemplates' not in sd
    and 'Osi.GetTemplate, user' not in ls
    and '066133a8-5dce-4636-8ba1-13efb1140c54' not in sd
    and 'Shadow_Wraith_A' not in sd
-   and 'fallbackSummonTemplate = "BASE_Humans_Male_Strong_12c0a711-1459-48e2-a50e-7b792eee0918"' in sd)
-ok('Runtime manifests from resolved stand definition before controlled fallback',
+   and 'fallbackSummonTemplate' not in sd
+   and 'BASE_Humans_Male_Strong' not in sd)
+ok('Runtime manifests only from resolved concrete stand definition',
    'def and def.summonTemplate' in ls
-   and 'def and def.fallbackSummonTemplate' in ls
    and 'tryCreateStandFromDefinition(def, user, x, y, z)' in ls
    and 'concrete stand template did not spawn' in ls)
 ok('Runtime mirrors linked damage in both directions with recursion guard',
@@ -492,6 +547,15 @@ ok('Star Platinum character stats are unarmed humanoid stand stats',
    and 'STAND_ENTITY_COMBAT_BODY' in char_stats
    and 'UnarmedAttackAbility" "Strength"' in char_stats
    and 'ActionResources" "ActionPoint:1;BonusActionPoint:1;ReactionActionPoint:1;Movement:9"' in char_stats)
+ok('Star Platinum character stats own requested combat actions',
+   all(f'UnlockSpell({spell})' in char_stats for spell in [
+       'Target_Stand_Barrage',
+       'Target_Stand_Intercept',
+       'Target_Stand_StarFinger',
+       'Target_Stand_Rush',
+       'Target_Stand_RelentlessBarrage',
+       'Target_Stand_TimeStop',
+   ]))
 
 ok('Script Extender config exists', se_config.exists(), str(se_config))
 cfg_ok = False
@@ -523,16 +587,40 @@ ok('TheStar action gates match subclass progression plus level 5 class note',
 feat_file = root / 'Public/StandPrototype/Stats/Generated/Data/StandPrototype_Feats.txt'
 ok('Obsolete feats file removed', not feat_file.exists())
 text_blobs = []
+text_by_path = {}
 for path in root.rglob('*'):
     if path.is_file() and path.suffix.lower() in {'.md','.txt','.lsx','.lua','.sh','.py','.example','.env'}:
         if path.name == 'validate_static.py':
             continue
         try:
-            text_blobs.append(path.read_text())
+            text = path.read_text()
+            text_blobs.append(text)
+            text_by_path[path.relative_to(root).as_posix()] = text
         except Exception:
             pass
 joined = '\n'.join(text_blobs)
 ok('No active feat unlock references', 'Feat_StandUserBase' not in joined and 'Feat_Arcana_TheStar' not in joined)
+stale_doc_patterns = [
+    'stock underwear',
+    'loincloth',
+    'equip attempt',
+    'Star Platinum receives stand combat actions at runtime',
+    'runtime override skipped',
+    'grantStandTierSpells',
+    'BASE_Humans_Male_Strong',
+    'EQP_Unarmed',
+    'initialweaponset',
+]
+stale_doc_hits = [
+    f'{path}: {pattern}'
+    for path, text in text_by_path.items()
+    if path.endswith(('.md', '.txt'))
+    for pattern in stale_doc_patterns
+    if pattern in text
+]
+ok('Docs do not describe removed fallback/runtime-grant architecture',
+   not stale_doc_hits,
+   '; '.join(stale_doc_hits[:8]))
 
 # dist/.build_stage not source of truth
 ok('Build script rebuilds and does not trust existing stage dir',

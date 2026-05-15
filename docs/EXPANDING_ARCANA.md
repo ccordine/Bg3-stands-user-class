@@ -26,7 +26,7 @@ Contract:
 - `StandUser` is the base class; Arcana entries are subclass paths.
 - `BaseStand` is the only pre-subclass Stand identity.
 - Do not add user-template, stock-body, or multi-template runtime fallbacks.
-- Each Arcana Stand must have one concrete `summonTemplate`, one root template, one character stat entry, one localization handle, and explicit `userActions`/`standActions`.
+- Each Arcana Stand must have one concrete `summonTemplate`, one root template, one character stat entry, one localization handle, concrete stat-owned combat actions, and explicit `userActions`/`standActions` for gates/repair checks.
 
 ## 2. Add Subclass Passive ID
 Edit:
@@ -49,7 +49,7 @@ Edit:
 - `StandPrototype_Passives.txt`
 - `StandPrototype_Spells.txt`
 
-Add tier passives (`EARLY/MID/LATE/CAPSTONE`) and spells used by the Stand. Put player/control spells in `userActions` and Stand combat spells in `standActions`. Do not rely on runtime mirroring of the user spellbook; every Stand-owned action should be listed explicitly.
+Add tier passives (`EARLY/MID/LATE/CAPSTONE`) and real SpellData entries used by the Stand. Put player/control spells in `userActions`, and list Stand combat spells in `standActions` only for level gates and logged repair fallback. Do not rely on runtime mirroring of the user spellbook; every Stand-owned action should be owned by concrete Stand data.
 
 ## 5. Add Concrete Stand Entity Data
 Create the concrete entity records before wiring runtime manifest:
@@ -57,14 +57,14 @@ Create the concrete entity records before wiring runtime manifest:
 - `Public/StandPrototype/Stats/Generated/Data/StandPrototype_Characters.txt`
 - `Localization/English/StandPrototype.xml`
 
-The root template `DisplayName` should point to the Stand localization handle. The runtime should not need to rename normal Stand identities after spawn.
+The root template `DisplayName` should point to the Stand localization handle, and the character/stat entry should unlock the Stand combat SpellData entries. The runtime should not need to rename normal Stand identities after spawn or build the primary spellbook after spawn.
 
 ## 6. Add Concrete Class/Kit Data
 For new class-facing features, add mod-owned data IDs instead of directly adding stock IDs to class records:
 - starter equipment: create `STANDUSER_*` or Arcana-specific item stats, then reference those IDs from `Equipment.txt`
 - skills/choices: create or extend mod-owned list records
 - passives/features: create mod-owned passive IDs and localization handles
-- spells/actions: create explicit spell IDs and place them in `userActions` or `standActions`
+- spells/actions: create explicit spell IDs; place user commands in `userActions`, put Stand combat IDs on the concrete Stand character/stat entry, and mirror those IDs in `standActions` only for gates/repair checks
 
 Stock inheritance is acceptable only as an engine behavior base. It should not be the public class/subclass contract.
 

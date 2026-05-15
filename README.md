@@ -13,7 +13,7 @@ Implemented now:
 - Concrete class kit: `StandUser` owns its starter equipment IDs, item names, skill list, ability preset, passives, and action spell lists
 - `The Star` (close-range power) as first active Arcana
 - Dedicated Star Platinum root template with Star Platinum-owned stats/localization/actions
-- Themed starter presentation: Stand User field gear, camp gear, custom starter dyes, Star Platinum ghost VFX, and a stock underwear/loincloth-style equip attempt
+- Themed starter presentation: Stand User field gear, camp gear, custom starter dyes, and Star Platinum ghost VFX
 - Tiered progression hooks (early/mid/late/capstone)
 - Status feedback mirroring from Stand to User
 - Stand clash detection between manifested Stands
@@ -54,13 +54,13 @@ Then build with:
 - Star Platinum hotbar after manifest: `ORA Barrage`, `Stand Intercept`
 - Stand User starts with a dark formal camp outfit plus black/blue dye options for a closer Jotaro-inspired look using stock assets
 - Stand User starter inventory uses `STANDUSER_*` item stat IDs rather than direct stock equipment entries
-- Star Platinum manifests with ghost VFX/glowing-eye VFX and attempts to equip a black underwear/loincloth-style stock item
+- Star Platinum manifests from its concrete root template with ghost VFX/glowing-eye VFX and no generic fallback body
 - Star Platinum is hard-capped to a 30ft / 9m close-range tether from the Stand User
 - Star Platinum gains `Star Finger` at Stand User level 5
 - Star Platinum gains `Stand Rush` at Stand User level 6
 - Star Platinum gains `Relentless Barrage` at Stand User level 10
 - Star Platinum gains `Time Stop` at Stand User level 12
-- Stand spawns as Star Platinum, joins combat, and owns the Star attack spells
+- Stand spawns as Star Platinum, joins combat, and owns the Star attack spells through concrete character stats, with Lua repair logging only if runtime spell repair is needed
 - If the configured concrete root template fails to spawn, manifest fails visibly instead of falling back to the wrong body
 - Tether auto-return triggers when too far
 - Stand damage mirrors to user
