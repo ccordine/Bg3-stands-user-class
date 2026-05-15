@@ -6,12 +6,12 @@
       <children>
         <node id="SpellList">
           <attribute id="Name" type="FixedString" value="Stand User level 1 core actions" />
-          <attribute id="Spells" type="LSString" value="Target_Stand_Manifest;Target_Stand_Withdraw" />
+          <attribute id="Spells" type="LSString" value="Shout_Stand_Manifest;Shout_Stand_Withdraw" />
           <attribute id="UUID" type="guid" value="a6f8f7c9-8475-46f5-9f7f-24f9dcb7c9a1" />
         </node>
         <node id="SpellList">
           <attribute id="Name" type="FixedString" value="Stand User level 2 core actions" />
-          <attribute id="Spells" type="LSString" value="Target_Stand_Reposition;Target_Stand_CombatPrediction" />
+          <attribute id="Spells" type="LSString" value="Shout_Stand_Reposition;Shout_Stand_CombatPrediction" />
           <attribute id="UUID" type="guid" value="5e6b735e-7f23-4a8a-b18f-a88f38ab7ec6" />
         </node>
         <node id="SpellList">

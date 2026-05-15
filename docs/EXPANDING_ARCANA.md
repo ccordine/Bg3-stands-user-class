@@ -26,7 +26,7 @@ Contract:
 - `StandUser` is the base class; Arcana entries are subclass paths.
 - `BaseStand` is the only pre-subclass Stand identity.
 - Do not add user-template, stock-body, or multi-template runtime fallbacks.
-- Each Arcana Stand must have one concrete `summonTemplate`, one root template, one character stat entry, one localization handle, concrete stat-owned combat actions, and explicit `userActions`/`standActions` for gates/repair checks.
+- Each Arcana Stand must have concrete tier `summonTemplate` records, root templates, character stat entries, one localization handle, concrete stat-owned combat actions, and explicit `userActions`/`standActions` only for runtime selection/logging.
 
 ## 2. Add Subclass Passive ID
 Edit:
@@ -49,7 +49,7 @@ Edit:
 - `StandPrototype_Passives.txt`
 - `StandPrototype_Spells.txt`
 
-Add tier passives (`EARLY/MID/LATE/CAPSTONE`) and real SpellData entries used by the Stand. Put player/control spells in `userActions`, and list Stand combat spells in `standActions` only for level gates and logged repair fallback. Do not rely on runtime mirroring of the user spellbook; every Stand-owned action should be owned by concrete Stand data.
+Add tier passives (`EARLY/MID/LATE/CAPSTONE`) and real SpellData entries used by the Stand. Put player/control spells in `userActions`, and list Stand combat spells in `standActions` only for level gates and diagnostic logging. Do not rely on runtime mirroring or repair of the user/Stand spellbook; every Stand-owned action must be owned by concrete Stand data.
 
 ## 5. Add Concrete Stand Entity Data
 Create the concrete entity records before wiring runtime manifest:
@@ -64,7 +64,7 @@ For new class-facing features, add mod-owned data IDs instead of directly adding
 - starter equipment: create `STANDUSER_*` or Arcana-specific item stats, then reference those IDs from `Equipment.txt`
 - skills/choices: create or extend mod-owned list records
 - passives/features: create mod-owned passive IDs and localization handles
-- spells/actions: create explicit spell IDs; place user commands in `userActions`, put Stand combat IDs on the concrete Stand character/stat entry, and mirror those IDs in `standActions` only for gates/repair checks
+- spells/actions: create explicit spell IDs; place user commands in `userActions`, put Stand combat IDs on concrete tier Stand character/stat entries, and mirror those IDs in `standActions` only for gates/diagnostic checks
 
 Stock inheritance is acceptable only as an engine behavior base. It should not be the public class/subclass contract.
 

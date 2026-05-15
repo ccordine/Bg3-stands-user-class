@@ -7,9 +7,18 @@ StandSystem.StandOwner = {}
 StandSystem.UserArcana = {}
 StandSystem.UserProgression = {}
 StandSystem.DamageLinkGuard = {}
+StandSystem.PendingDespawn = {}
+StandSystem.DeleteAudit = {}
 
 local NULL_GUID = "NULL_00000000-0000-0000-0000-000000000000"
 local DEFAULT_CLOSE_RANGE_TETHER = 9.0
+local ENABLE_RUNTIME_STAND_ACTION_REPAIR = false
+local TETHER_SWEEP_TICK_INTERVAL = 15
+local DESPAWN_RETRY_TICK_INTERVAL = 5
+local DESPAWN_MAX_ATTEMPTS = 80
+local DELETE_AUDIT_TICK_INTERVAL = 5
+local DELETE_AUDIT_MAX_ATTEMPTS = 30
+local tetherSweepTick = 0
 
 local MIRRORABLE_STATUSES = {
   BURNING = true,
@@ -39,24 +48,6 @@ local STAND_SPAWN_OFFSETS = {
   { -2.4, 0.0 },
   { 0.0, 2.4 },
   { 0.0, -2.4 }
-}
-
-local USER_FORBIDDEN_STAND_SPELLS = {
-  "Target_Stand_Barrage",
-  "Target_Stand_Intercept",
-  "Target_Stand_Rush",
-  "Target_Stand_StarFinger",
-  "Target_Stand_RelentlessBarrage",
-  "Target_Stand_TimeStop"
-}
-
-
-local GLOBAL_INHERITED_STAND_SPELL_BLOCKLIST = {
-  "Target_LifeDrain_Wraith",
-  "Target_CreateShadow_Wraith",
-  "Target_EtherealJaunt",
-  "Target_EtherealJaunt_Queen",
-  "Target_EtherealJaunt_Spiderling"
 }
 
 local KNOWN_FEAT_PASSIVE_SYNC_CANDIDATES = {
@@ -121,6 +112,8 @@ local function ensureTables()
   StandSystem.UserArcana = StandSystem.UserArcana or {}
   StandSystem.UserProgression = StandSystem.UserProgression or {}
   StandSystem.DamageLinkGuard = StandSystem.DamageLinkGuard or {}
+  StandSystem.PendingDespawn = StandSystem.PendingDespawn or {}
+  StandSystem.DeleteAudit = StandSystem.DeleteAudit or {}
 end
 
 local function isValidGuid(guid)
@@ -280,6 +273,31 @@ local function hasPassiveSummary(entity, passive)
   return "error:" .. tostring(result)
 end
 
+local function getLevelSummary(entity)
+  if type(Osi.GetLevel) ~= "function" then
+    return "Osi.GetLevel unavailable"
+  end
+
+  local ok, level = pcall(Osi.GetLevel, entity)
+  if ok then
+    return tostring(level)
+  end
+
+  return "error:" .. tostring(level)
+end
+
+local function joinList(values)
+  if not values or #values == 0 then
+    return "<none>"
+  end
+
+  local out = {}
+  for _, value in ipairs(values) do
+    table.insert(out, tostring(value))
+  end
+  return table.concat(out, ",")
+end
+
 local function describeDefinition(def)
   if not def then
     return "def=nil"
@@ -289,6 +307,7 @@ local function describeDefinition(def)
     .. " displayName=[" .. tostring(def.displayName) .. "]"
     .. " standName=[" .. tostring(def.standName) .. "]"
     .. " summonTemplate=[" .. tostring(def.summonTemplate) .. "]"
+    .. " expectedStat=[" .. tostring(def.characterStat) .. "]"
     .. " fallbackSummonTemplate=[" .. tostring(def.fallbackSummonTemplate) .. "]"
     .. " nameHandle=[" .. tostring(def.standDisplayNameHandle) .. "]"
 end
@@ -298,6 +317,7 @@ local function describeEntity(label, guid)
     .. "guid=" .. tostring(guid)
     .. " template=" .. tostring(getTemplateSafe(guid))
     .. " pos=" .. tostring(getPositionSummary(guid))
+    .. " level=" .. tostring(getLevelSummary(guid))
     .. " standUserPassive=" .. tostring(hasPassiveSummary(guid, "STAND_USER_BASE_CLASS_PASSIVE"))
     .. " theStarPassive=" .. tostring(hasPassiveSummary(guid, "STAND_SUBCLASS_THE_STAR"))
     .. "]"
@@ -315,6 +335,299 @@ local function logStateSnapshot(label, user, stand, def)
       .. " activeCountApprox=[" .. tostring(StandSystem.Active and "available" or "nil") .. "]"
       .. " " .. describeDefinition(def)
   )
+end
+
+local function getStageSummary(entity)
+  if not entity or entity == "" or type(Osi.IsOnStage) ~= "function" then
+    return "unknown"
+  end
+
+  if type(Osi.Exists) == "function" then
+    local okExists, exists = pcall(Osi.Exists, entity)
+    if okExists and exists == 0 then
+      return "deleted"
+    end
+  end
+
+  local okOn, onStage = pcall(Osi.IsOnStage, entity, 1)
+  if okOn and onStage == 1 then
+    return "on"
+  end
+
+  local okOff, offStage = pcall(Osi.IsOnStage, entity, 0)
+  if okOff and offStage == 1 then
+    return "off"
+  end
+
+  return "query_failed:on=" .. tostring(onStage) .. ":off=" .. tostring(offStage)
+end
+
+local function isOffstage(entity)
+  if not entity or entity == "" then
+    return false
+  end
+
+  if type(Osi.Exists) == "function" then
+    local okExists, exists = pcall(Osi.Exists, entity)
+    if okExists and exists == 0 then
+      return true
+    end
+  end
+
+  if type(Osi.IsOnStage) ~= "function" then
+    return false
+  end
+
+  local okOff, offStage = pcall(Osi.IsOnStage, entity, 0)
+  return okOff and offStage == 1
+end
+
+local function isDeadSafe(entity)
+  if not entity or entity == "" or type(Osi.IsDead) ~= "function" then
+    return false
+  end
+
+  local okDead, dead = pcall(Osi.IsDead, entity)
+  return okDead and dead == 1
+end
+
+local function getExistsSummary(entity)
+  if not entity or entity == "" then
+    return "empty"
+  end
+  if type(Osi.Exists) ~= "function" then
+    return "Osi.Exists unavailable"
+  end
+  local ok, exists = pcall(Osi.Exists, entity)
+  if ok then
+    return tostring(exists)
+  end
+  return "error:" .. tostring(exists)
+end
+
+local function describeDeleteTarget(label, entity)
+  return tostring(label) .. "=["
+    .. "guid=" .. tostring(entity)
+    .. " exists=" .. tostring(getExistsSummary(entity))
+    .. " stage=" .. tostring(getStageSummary(entity))
+    .. " dead=" .. tostring(isDeadSafe(entity))
+    .. " template=" .. tostring(getTemplateSafe(entity))
+    .. " pos=" .. tostring(getPositionSummary(entity))
+    .. "]"
+end
+
+local function findPendingDespawnForUser(user)
+  ensureTables()
+  if not user or user == "" then
+    return nil, nil
+  end
+
+  for stand, pending in pairs(StandSystem.PendingDespawn) do
+    if pending and pending.user == user then
+      return stand, pending
+    end
+  end
+
+  return nil, nil
+end
+
+local function queueStandDelete(user, stand, reason)
+  ensureTables()
+  if not stand or stand == "" then
+    logWarn("queueStandDelete skipped empty stand user=[" .. tostring(user) .. "] reason=[" .. tostring(reason) .. "]")
+    return
+  end
+
+  StandSystem.PendingDespawn[stand] = {
+    user = user,
+    reason = reason,
+    phase = "temporary_delete",
+    attempts = 0,
+    ticks = 0
+  }
+  StandSystem.DeleteAudit[stand] = {
+    user = user,
+    reason = reason,
+    attempts = 0,
+    ticks = 0
+  }
+  logWarn("queueStandDelete stand=[" .. tostring(stand) .. "] user=[" .. tostring(user) .. "] reason=[" .. tostring(reason) .. "] stage=[" .. tostring(getStageSummary(stand)) .. "]")
+end
+
+local function clearStandOwnershipAfterDelete(user, stand, reason)
+  logInfo(
+    "clearStandOwnershipAfterDelete"
+      .. " user=[" .. tostring(user) .. "]"
+      .. " stand=[" .. tostring(stand) .. "]"
+      .. " reason=[" .. tostring(reason) .. "]"
+  )
+  if user and StandSystem.Active[user] and StandSystem.Active[user].stand == stand then
+    StandSystem.Active[user] = nil
+  end
+  if stand then
+    StandSystem.StandOwner[stand] = nil
+    StandSystem.PendingDespawn[stand] = nil
+  end
+  if user and user ~= "" then
+    safeOsi("Osi.RemoveStatus delete STAND_USER_ACTIVE user=[" .. tostring(user) .. "]", Osi.RemoveStatus, user, "STAND_USER_ACTIVE")
+    safeOsi("Osi.RemoveStatus delete STAND_SPIRITUAL_LINK user=[" .. tostring(user) .. "]", Osi.RemoveStatus, user, "STAND_SPIRITUAL_LINK")
+    safeOsi("Osi.RemoveStatus delete STAND_VISION user=[" .. tostring(user) .. "]", Osi.RemoveStatus, user, "STAND_VISION")
+  end
+end
+
+local function requestDeleteTemporaryStand(user, stand, reason)
+  if not stand or stand == "" then
+    logError("requestDeleteTemporaryStand missing stand user=[" .. tostring(user) .. "] reason=[" .. tostring(reason) .. "]")
+    return false
+  end
+
+  logWarn(
+    "requestDeleteTemporaryStand start"
+      .. " user=[" .. tostring(user) .. "]"
+      .. " stand=[" .. tostring(stand) .. "]"
+      .. " reason=[" .. tostring(reason) .. "]"
+      .. " " .. describeDeleteTarget("targetBefore", stand)
+      .. " activeStateStand=[" .. tostring(StandSystem.Active[user] and StandSystem.Active[user].stand) .. "]"
+      .. " ownerForStand=[" .. tostring(StandSystem.StandOwner[stand]) .. "]"
+      .. " requestDeleteTemporaryAvailable=[" .. tostring(type(Osi.RequestDeleteTemporary) == "function") .. "]"
+      .. " removePartyFollowerAvailable=[" .. tostring(type(Osi.RemovePartyFollower) == "function") .. "]"
+      .. " setOnStageAvailable=[" .. tostring(type(Osi.SetOnStage) == "function") .. "]"
+  )
+
+  local removeStatusOk = safeOsi("Osi.RemoveStatus temporary-delete STAND_ENTITY_ACTIVE stand=[" .. tostring(stand) .. "]", Osi.RemoveStatus, stand, "STAND_ENTITY_ACTIVE")
+  logWarn("requestDeleteTemporaryStand after RemoveStatus ok=[" .. tostring(removeStatusOk) .. "] " .. describeDeleteTarget("target", stand))
+  local leaveCombatOk = safeOsi("Osi.LeaveCombat temporary-delete stand=[" .. tostring(stand) .. "]", Osi.LeaveCombat, stand)
+  logWarn("requestDeleteTemporaryStand after LeaveCombat ok=[" .. tostring(leaveCombatOk) .. "] " .. describeDeleteTarget("target", stand))
+  if type(Osi.PurgeOsirisQueue) == "function" then
+    local purgeOneOk = safeOsi("Osi.PurgeOsirisQueue temporary-delete stand=[" .. tostring(stand) .. "] flag=[1]", Osi.PurgeOsirisQueue, stand, 1)
+    logWarn("requestDeleteTemporaryStand after PurgeOsirisQueue flag=1 ok=[" .. tostring(purgeOneOk) .. "] " .. describeDeleteTarget("target", stand))
+    local purgeZeroOk = safeOsi("Osi.PurgeOsirisQueue temporary-delete stand=[" .. tostring(stand) .. "] flag=[0]", Osi.PurgeOsirisQueue, stand, 0)
+    logWarn("requestDeleteTemporaryStand after PurgeOsirisQueue flag=0 ok=[" .. tostring(purgeZeroOk) .. "] " .. describeDeleteTarget("target", stand))
+  else
+    logError("requestDeleteTemporaryStand missing Osi.PurgeOsirisQueue stand=[" .. tostring(stand) .. "] reason=[" .. tostring(reason) .. "]")
+  end
+
+  local deleteOk = false
+  if type(Osi.RequestDeleteTemporary) == "function" then
+    deleteOk = safeOsi("Osi.RequestDeleteTemporary temporary-delete stand=[" .. tostring(stand) .. "] reason=[" .. tostring(reason) .. "]", Osi.RequestDeleteTemporary, stand) or false
+    logWarn("requestDeleteTemporaryStand after RequestDeleteTemporary ok=[" .. tostring(deleteOk) .. "] " .. describeDeleteTarget("target", stand))
+  else
+    logError("requestDeleteTemporaryStand missing Osi.RequestDeleteTemporary stand=[" .. tostring(stand) .. "] reason=[" .. tostring(reason) .. "]")
+  end
+
+  if user and user ~= "" then
+    local removeFollowerOk = safeOsi("Osi.RemovePartyFollower temporary-delete stand=[" .. tostring(stand) .. "] user=[" .. tostring(user) .. "] reason=[" .. tostring(reason) .. "]", Osi.RemovePartyFollower, stand, user)
+    logWarn("requestDeleteTemporaryStand after RemovePartyFollower ok=[" .. tostring(removeFollowerOk) .. "] user=[" .. tostring(user) .. "] " .. describeDeleteTarget("target", stand))
+  end
+  if type(Osi.SetOnStage) == "function" then
+    local setOffstageOk = safeOsi("Osi.SetOnStage temporary-delete hide stand=[" .. tostring(stand) .. "] onStage=[0] reason=[" .. tostring(reason) .. "]", Osi.SetOnStage, stand, 0)
+    logWarn("requestDeleteTemporaryStand after SetOnStage(0) ok=[" .. tostring(setOffstageOk) .. "] " .. describeDeleteTarget("target", stand))
+  end
+
+  logWarn(
+    "requestDeleteTemporaryStand queued"
+      .. " user=[" .. tostring(user) .. "]"
+      .. " stand=[" .. tostring(stand) .. "]"
+      .. " reason=[" .. tostring(reason) .. "]"
+      .. " deleteOk=[" .. tostring(deleteOk) .. "]"
+      .. " " .. describeDeleteTarget("targetAfter", stand)
+  )
+
+  return deleteOk
+end
+
+function StandSystem.ProcessDeleteAudits(reason)
+  ensureTables()
+  for stand, audit in pairs(StandSystem.DeleteAudit) do
+    audit.ticks = (audit.ticks or 0) + 1
+    if audit.ticks >= DELETE_AUDIT_TICK_INTERVAL then
+      audit.ticks = 0
+      audit.attempts = (audit.attempts or 0) + 1
+      logWarn(
+        "DELETE_AUDIT"
+          .. " reason=[" .. tostring(reason) .. "]"
+          .. " originalReason=[" .. tostring(audit.reason) .. "]"
+          .. " attempts=[" .. tostring(audit.attempts) .. "/" .. tostring(DELETE_AUDIT_MAX_ATTEMPTS) .. "]"
+          .. " user=[" .. tostring(audit.user) .. "]"
+          .. " activeStateStand=[" .. tostring(audit.user and StandSystem.Active[audit.user] and StandSystem.Active[audit.user].stand) .. "]"
+          .. " ownerForStand=[" .. tostring(StandSystem.StandOwner[stand]) .. "]"
+          .. " pendingDelete=[" .. tostring(StandSystem.PendingDespawn[stand] ~= nil) .. "]"
+          .. " " .. describeDeleteTarget("target", stand)
+      )
+      if isOffstage(stand) or audit.attempts >= DELETE_AUDIT_MAX_ATTEMPTS then
+        if audit.attempts >= DELETE_AUDIT_MAX_ATTEMPTS and not isOffstage(stand) then
+          logError("DELETE_AUDIT giving up: deleted Stand GUID still appears present " .. describeDeleteTarget("target", stand))
+        end
+        StandSystem.DeleteAudit[stand] = nil
+      end
+    end
+  end
+end
+
+function StandSystem.ProcessPendingDespawns(reason)
+  ensureTables()
+  local processed = 0
+  local completed = 0
+
+  for stand, pending in pairs(StandSystem.PendingDespawn) do
+    processed = processed + 1
+    pending.ticks = (pending.ticks or 0) + 1
+
+    if isOffstage(stand) then
+      completed = completed + 1
+      logInfo("ProcessPendingDespawns complete: stand is deleted/offstage stand=[" .. tostring(stand) .. "] user=[" .. tostring(pending.user) .. "] attempts=[" .. tostring(pending.attempts) .. "] stage=[" .. tostring(getStageSummary(stand)) .. "] reason=[" .. tostring(reason) .. "]")
+      clearStandOwnershipAfterDelete(pending.user, stand, "pending_complete:" .. tostring(reason))
+    elseif pending.ticks >= DESPAWN_RETRY_TICK_INTERVAL then
+      pending.ticks = 0
+      pending.attempts = (pending.attempts or 0) + 1
+      logWarn(
+        "ProcessPendingDespawns retry"
+          .. " stand=[" .. tostring(stand) .. "]"
+          .. " user=[" .. tostring(pending.user) .. "]"
+          .. " phase=[" .. tostring(pending.phase) .. "]"
+          .. " attempts=[" .. tostring(pending.attempts) .. "/" .. tostring(DESPAWN_MAX_ATTEMPTS) .. "]"
+          .. " stage=[" .. tostring(getStageSummary(stand)) .. "]"
+          .. " position=[" .. tostring(getPositionSummary(stand)) .. "]"
+          .. " reason=[" .. tostring(pending.reason) .. "]"
+          .. " tickReason=[" .. tostring(reason) .. "]"
+      )
+      requestDeleteTemporaryStand(pending.user, stand, "pending_retry_delete:" .. tostring(pending.reason) .. ":" .. tostring(pending.attempts))
+
+      if pending.attempts >= DESPAWN_MAX_ATTEMPTS then
+        logError(
+          "ProcessPendingDespawns giving up after max attempts; temporary Stand entity still appears onstage"
+            .. " stand=[" .. tostring(stand) .. "]"
+            .. " user=[" .. tostring(pending.user) .. "]"
+            .. " stage=[" .. tostring(getStageSummary(stand)) .. "]"
+            .. " position=[" .. tostring(getPositionSummary(stand)) .. "]"
+            .. " reason=[" .. tostring(pending.reason) .. "]"
+        )
+      end
+    end
+  end
+
+  if processed > 0 then
+    trace("ProcessPendingDespawns pass reason=[" .. tostring(reason) .. "] processed=[" .. tostring(processed) .. "] completed=[" .. tostring(completed) .. "]")
+  end
+end
+
+function StandSystem.OnCharacterLeftParty(character)
+  ensureTables()
+  local pending = StandSystem.PendingDespawn[character]
+  if pending then
+    logWarn("CharacterLeftParty observed for pending temporary Stand delete character=[" .. tostring(character) .. "] user=[" .. tostring(pending.user) .. "]")
+    pending.ticks = DESPAWN_RETRY_TICK_INTERVAL
+    StandSystem.ProcessPendingDespawns("character_left_party")
+  end
+end
+
+function StandSystem.OnEntityDied(character)
+  ensureTables()
+  local user = StandSystem.StandOwner[character]
+  if user then
+    logWarn("Died observed for tracked Stand; clearing state only character=[" .. tostring(character) .. "] user=[" .. tostring(user) .. "]")
+    clearStandOwnershipAfterDelete(user, character, "stand_died")
+  end
 end
 
 local function collectIdsFromObject(value, out, candidateFields, allow, depth, seen)
@@ -397,6 +710,54 @@ local function sortedKeys(t)
   end
   table.sort(keys)
   return keys
+end
+
+local function shallowCopyTable(value)
+  local out = {}
+  if type(value) ~= "table" then
+    return out
+  end
+  for k, v in pairs(value) do
+    out[k] = v
+  end
+  return out
+end
+
+local function resolveConcreteStandDefinition(user, def)
+  if not def or not def.tiers then
+    return def
+  end
+
+  local level = StandSystem.GetUserStandProgressLevel(user)
+  local selectedLevel = nil
+  for _, tierLevel in ipairs(sortedKeys(def.tiers)) do
+    if tierLevel <= level then
+      selectedLevel = tierLevel
+    end
+  end
+
+  if not selectedLevel then
+    logError("resolveConcreteStandDefinition failed: no tier available level=[" .. tostring(level) .. "] " .. describeDefinition(def))
+    return def
+  end
+
+  local tier = def.tiers[selectedLevel]
+  local resolved = shallowCopyTable(def)
+  resolved.tierLevel = selectedLevel
+  resolved.characterStat = tier.characterStat or def.characterStat
+  resolved.entityTemplate = tier.entityTemplate or tier.summonTemplate or def.entityTemplate
+  resolved.summonTemplate = tier.summonTemplate or def.summonTemplate
+  resolved.expectedActions = tier.actions
+  logInfo(
+    "resolveConcreteStandDefinition"
+      .. " user=[" .. tostring(user) .. "]"
+      .. " level=[" .. tostring(level) .. "]"
+      .. " selectedTier=[" .. tostring(selectedLevel) .. "]"
+      .. " template=[" .. tostring(resolved.summonTemplate) .. "]"
+      .. " expectedStat=[" .. tostring(resolved.characterStat) .. "]"
+      .. " expectedActions=[" .. joinList(resolved.expectedActions or {}) .. "]"
+  )
+  return resolved
 end
 
 getUserState = function(user)
@@ -497,16 +858,6 @@ local function enforceCharacterUnarmed(character)
   logInfo("enforceCharacterUnarmed complete character=[" .. tostring(character) .. "]")
 end
 
-local function removeSpellSafe(character, spell)
-  local ok, err = pcall(Osi.RemoveSpell, character, spell, 1)
-  if not ok then
-    logWarn("Osi.RemoveSpell arity-3 failed character=[" .. tostring(character) .. "] spell=[" .. tostring(spell) .. "] err=[" .. tostring(err) .. "]; retrying arity-2")
-    safeOsi("Osi.RemoveSpell retry character=[" .. tostring(character) .. "] spell=[" .. tostring(spell) .. "]", Osi.RemoveSpell, character, spell)
-  else
-    logInfo("Osi.RemoveSpell checked/removed character=[" .. tostring(character) .. "] spell=[" .. tostring(spell) .. "]")
-  end
-end
-
 local function hasSpellSafe(character, spell)
   if type(Osi.HasSpell) ~= "function" then
     logWarn("Osi.HasSpell unavailable; cannot verify concrete spell ownership character=[" .. tostring(character) .. "] spell=[" .. tostring(spell) .. "]")
@@ -521,14 +872,6 @@ local function hasSpellSafe(character, spell)
 
   logError("Osi.HasSpell failed character=[" .. tostring(character) .. "] spell=[" .. tostring(spell) .. "] err=[" .. tostring(result) .. "]")
   return nil
-end
-
-local function enforceUserCommandOnlySpellbook(user)
-  logInfo("enforceUserCommandOnlySpellbook start user=[" .. tostring(user) .. "]")
-  for _, spell in ipairs(USER_FORBIDDEN_STAND_SPELLS) do
-    removeSpellSafe(user, spell)
-  end
-  logInfo("enforceUserCommandOnlySpellbook complete user=[" .. tostring(user) .. "]")
 end
 
 local function collectActionsByLevel(actionTable, level)
@@ -552,73 +895,63 @@ local function collectActionsByLevel(actionTable, level)
   return actions
 end
 
-local function collectAllActions(actionTable)
-  return collectActionsByLevel(actionTable, 99)
-end
-
-local function repairStandActionSpellbook(user, stand, def)
+local function verifyConcreteStandActionOwnership(user, stand, def)
   local level = StandSystem.GetUserStandProgressLevel(user)
   local arcana = StandSystem.ResolveArcana(user)
-  local allowed = {}
+  local unlockedActions = (def and def.expectedActions) or collectActionsByLevel(def and def.standActions, level)
 
   trace(
-    "repairStandActionSpellbook start: concrete template/stat ownership is primary; runtime AddSpell is repair fallback only"
+    "verifyConcreteStandActionOwnership start: BG3 data owns Stand actions; Lua only logs"
       .. " user=[" .. tostring(user) .. "]"
       .. " stand=[" .. tostring(stand) .. "]"
       .. " arcana=[" .. tostring(arcana) .. "]"
       .. " defId=[" .. tostring(def and def.id) .. "]"
+      .. " tierLevel=[" .. tostring(def and def.tierLevel) .. "]"
+      .. " template=[" .. tostring(def and def.summonTemplate) .. "]"
+      .. " expectedStat=[" .. tostring(def and def.characterStat) .. "]"
       .. " level=[" .. tostring(level) .. "]"
+      .. " unlockedActions=[" .. joinList(unlockedActions) .. "]"
+      .. " runtimeRepairEnabled=[" .. tostring(ENABLE_RUNTIME_STAND_ACTION_REPAIR) .. "]"
   )
 
-  for _, spell in ipairs(GLOBAL_INHERITED_STAND_SPELL_BLOCKLIST) do
-    removeSpellSafe(stand, spell)
-  end
-  if def.inheritedSpellBlocklist then
-    for _, spell in ipairs(def.inheritedSpellBlocklist) do
-      removeSpellSafe(stand, spell)
-    end
+  if not def or not def.standActions then
+    logError("verifyConcreteStandActionOwnership cannot evaluate stand actions: missing definition or standActions def=[" .. tostring(def) .. "]")
+    return
   end
 
-  for _, spell in ipairs(collectActionsByLevel(def.standActions, level)) do
-    allowed[spell] = true
+  if arcana ~= "TheStar" and #unlockedActions == 0 then
+    logWarn(
+      "No Star Platinum combat actions will be granted because user did not resolve to TheStar"
+        .. " user=[" .. tostring(user) .. "]"
+        .. " arcana=[" .. tostring(arcana) .. "]"
+        .. " levelGate=[" .. tostring(level) .. "]"
+        .. " hasSTAND_SUBCLASS_THE_STAR=[" .. tostring(hasPassiveSummary(user, "STAND_SUBCLASS_THE_STAR")) .. "]"
+    )
+  end
+
+  for _, spell in ipairs(unlockedActions) do
     local hasSpell = hasSpellSafe(stand, spell)
     if hasSpell == true then
       trace("Concrete stand spell already present spell=[" .. tostring(spell) .. "] stand=[" .. tostring(stand) .. "]")
     else
-      trace(
-        "Runtime AddSpell repair fallback"
+      logError(
+        "Concrete stand action missing; Lua will not add/remove/lock Stand spells"
           .. " spell=[" .. tostring(spell) .. "]"
           .. " stand=[" .. tostring(stand) .. "]"
           .. " concreteCheck=[" .. tostring(hasSpell) .. "]"
+          .. " expectedStat=[" .. tostring(def and def.characterStat) .. "]"
+          .. " template=[" .. tostring(def and def.summonTemplate) .. "]"
+          .. " requiredDataPath=[Public/StandPrototype/Stats/Generated/Data/Character.txt DefaultBoosts UnlockSpell]"
       )
-      callAndTrace(
-        "Osi.AddSpell repair fallback spell=[" .. tostring(spell) .. "]",
-        Osi.AddSpell,
-        stand,
-        spell,
-        0,
-        1
-      )
-    end
-  end
-
-  for _, spell in ipairs(collectAllActions(def.standActions)) do
-    if not allowed[spell] then
-      removeSpellSafe(stand, spell)
-    end
-  end
-
-  for _, spell in ipairs(USER_FORBIDDEN_STAND_SPELLS) do
-    if not allowed[spell] then
-      removeSpellSafe(stand, spell)
     end
   end
 
   trace(
-    "repairStandActionSpellbook complete"
+    "verifyConcreteStandActionOwnership complete"
       .. " user=[" .. tostring(user) .. "]"
       .. " stand=[" .. tostring(stand) .. "]"
       .. " level=[" .. tostring(level) .. "]"
+      .. " unlockedActions=[" .. joinList(unlockedActions) .. "]"
   )
 end
 
@@ -798,30 +1131,59 @@ local function tryCreateStandFromDefinition(def, user, x, y, z)
   return nil, "template_empty", template
 end
 
-local function enforceStandTether(owner, stand, state)
+local function enforceStandTether(owner, stand, state, reason)
   if not owner or not stand or not state then
-    logError("enforceStandTether missing input owner=[" .. tostring(owner) .. "] stand=[" .. tostring(stand) .. "] state=[" .. tostring(state) .. "]")
+    logError("enforceStandTether missing input owner=[" .. tostring(owner) .. "] stand=[" .. tostring(stand) .. "] state=[" .. tostring(state) .. "] reason=[" .. tostring(reason) .. "]")
     return
   end
 
   local dist = getDistance(owner, stand)
   if dist <= (state.tetherRange or DEFAULT_CLOSE_RANGE_TETHER) then
-    logInfo("enforceStandTether ok owner=[" .. tostring(owner) .. "] stand=[" .. tostring(stand) .. "] distance=[" .. tostring(dist) .. "] tether=[" .. tostring(state.tetherRange) .. "]")
+    trace("enforceStandTether ok owner=[" .. tostring(owner) .. "] stand=[" .. tostring(stand) .. "] distance=[" .. tostring(dist) .. "] tether=[" .. tostring(state.tetherRange) .. "] reason=[" .. tostring(reason) .. "]")
     return
   end
 
-  logWarn("enforceStandTether breach owner=[" .. tostring(owner) .. "] stand=[" .. tostring(stand) .. "] distance=[" .. tostring(dist) .. "] tether=[" .. tostring(state.tetherRange) .. "] breakBehavior=[" .. tostring(state.breakBehavior) .. "]")
+  logWarn("enforceStandTether breach owner=[" .. tostring(owner) .. "] stand=[" .. tostring(stand) .. "] arcana=[" .. tostring(state.arcana) .. "] standName=[" .. tostring(state.standName) .. "] distance=[" .. tostring(dist) .. "] tether=[" .. tostring(state.tetherRange) .. "] breakBehavior=[" .. tostring(state.breakBehavior) .. "] reason=[" .. tostring(reason) .. "]")
   if state.breakBehavior == "AutoReturn" then
     local okPos, ux, uy, uz = pcall(Osi.GetPosition, owner)
     if ux then
       safeOsi("Osi.TeleportToPosition tether autoreturn stand=[" .. tostring(stand) .. "] owner=[" .. tostring(owner) .. "]", Osi.TeleportToPosition, stand, ux + 1.0, uy, uz, "", 0, 1, 0)
       statusSafe(owner, "STAND_TETHER_WARNING", 6.0, 1, stand, "tether_autoreturn")
+      logWarn("enforceStandTether autoreturn complete owner=[" .. tostring(owner) .. "] stand=[" .. tostring(stand) .. "] returnPosition=[" .. tostring(ux + 1.0) .. "," .. tostring(uy) .. "," .. tostring(uz) .. "] reason=[" .. tostring(reason) .. "]")
     else
-      logError("enforceStandTether failed: owner position unavailable owner=[" .. tostring(owner) .. "] ok=[" .. tostring(okPos) .. "] result=[" .. tostring(ux) .. "]")
+      logError("enforceStandTether failed: owner position unavailable owner=[" .. tostring(owner) .. "] stand=[" .. tostring(stand) .. "] ok=[" .. tostring(okPos) .. "] result=[" .. tostring(ux) .. "] reason=[" .. tostring(reason) .. "]")
     end
   else
     statusSafe(stand, "STAND_TETHER_LOCKED", 6.0, 1, owner, "tether_locked")
   end
+end
+
+function StandSystem.EnforceAllTethers(reason)
+  ensureTables()
+  local checked = 0
+  local removed = 0
+
+  for owner, state in pairs(StandSystem.Active) do
+    local stand = state and state.stand
+    if not owner or not stand then
+      removed = removed + 1
+      StandSystem.Active[owner] = nil
+    else
+      local okOwnerDead, ownerDead = pcall(Osi.IsDead, owner)
+      local okStandDead, standDead = pcall(Osi.IsDead, stand)
+      if (okOwnerDead and ownerDead == 1) or (okStandDead and standDead == 1) then
+        removed = removed + 1
+        logWarn("EnforceAllTethers clearing stale/dead Stand state owner=[" .. tostring(owner) .. "] stand=[" .. tostring(stand) .. "] ownerDead=[" .. tostring(ownerDead) .. "] standDead=[" .. tostring(standDead) .. "] reason=[" .. tostring(reason) .. "]")
+        requestDeleteTemporaryStand(owner, stand, "tether_stale_dead:" .. tostring(reason))
+        clearStandOwnershipAfterDelete(owner, stand, "tether_stale_dead:" .. tostring(reason))
+      else
+        checked = checked + 1
+        enforceStandTether(owner, stand, state, reason)
+      end
+    end
+  end
+
+  trace("EnforceAllTethers complete reason=[" .. tostring(reason) .. "] checked=[" .. tostring(checked) .. "] removed=[" .. tostring(removed) .. "]")
 end
 
 function StandSystem.RefreshUnarmoredDiscipline(user)
@@ -903,7 +1265,7 @@ function StandSystem.RefreshStandDerivedBonuses(user)
   end
   applyStandPresentation(user, stand, def, false)
   syncUserCapabilitiesToStand(user, stand)
-  enforceStandTether(user, stand, state)
+  enforceStandTether(user, stand, state, "refresh_derived_bonuses")
 
   if def and def.id == "the_star" then
     if (def.baseStandACBonus or 0) > 0 then
@@ -929,6 +1291,13 @@ function StandSystem.ResolveArcana(user)
     StandSystem.UserArcana[user] = "TheStar"
   else
     StandSystem.UserArcana[user] = StandDefinitions.Core.defaultArcana
+    logInfo(
+      "ResolveArcana using default unawakened Stand because no Arcana subclass passive is present"
+        .. " user=[" .. tostring(user) .. "]"
+        .. " previous=[" .. tostring(previous) .. "]"
+        .. " defaultArcana=[" .. tostring(StandDefinitions.Core.defaultArcana) .. "]"
+        .. " hasSTAND_SUBCLASS_THE_STAR=[" .. tostring(hasPassiveSummary(user, "STAND_SUBCLASS_THE_STAR")) .. "]"
+    )
   end
 
   logInfo("ResolveArcana user=[" .. tostring(user) .. "] previous=[" .. tostring(previous) .. "] resolved=[" .. tostring(StandSystem.UserArcana[user]) .. "]")
@@ -953,18 +1322,20 @@ function StandSystem.GetUserStandProgressLevel(user)
     return 2
   end
 
-  -- Before Arcana subclass selection, keep the base Stand generic.
+  -- Before Arcana subclass selection, the user has only the default
+  -- unawakened BaseStand and no Star Platinum combat actions.
   return 1
 end
 
 function StandSystem.GetDefinition(user)
   local arcana = StandSystem.ResolveArcana(user)
-  local def = StandDefinitions.Arcana[arcana] or StandDefinitions.Arcana[StandDefinitions.Core.defaultArcana]
-  if not StandDefinitions.Arcana[arcana] then
-    logError("GetDefinition missing arcana definition arcana=[" .. tostring(arcana) .. "] usingDefault=[" .. tostring(StandDefinitions.Core.defaultArcana) .. "] user=[" .. tostring(user) .. "]")
-  else
-    logInfo("GetDefinition user=[" .. tostring(user) .. "] " .. describeDefinition(def))
+  local def = StandDefinitions.Arcana[arcana]
+  if not def then
+    logError("GetDefinition failed: missing resolved arcana definition arcana=[" .. tostring(arcana) .. "] user=[" .. tostring(user) .. "]; no fallback definition will be used")
+    return nil
   end
+
+  logInfo("GetDefinition user=[" .. tostring(user) .. "] " .. describeDefinition(def))
   return def
 end
 
@@ -997,12 +1368,10 @@ function StandSystem.CleanupStaleState(user, reason)
 
   local dead = Osi.IsDead(stand)
   if dead == 1 then
-    logWarn("CleanupStaleState removing dead stand user=[" .. tostring(user) .. "] stand=[" .. tostring(stand) .. "] reason=[" .. tostring(reason) .. "]")
-    StandSystem.Active[user] = nil
-    StandSystem.StandOwner[stand] = nil
-    safeOsi("Osi.RemoveStatus cleanup dead-stand STAND_USER_ACTIVE user=[" .. tostring(user) .. "]", Osi.RemoveStatus, user, "STAND_USER_ACTIVE")
-    safeOsi("Osi.RemoveStatus cleanup dead-stand STAND_SPIRITUAL_LINK user=[" .. tostring(user) .. "]", Osi.RemoveStatus, user, "STAND_SPIRITUAL_LINK")
-    safeOsi("Osi.RemoveStatus cleanup dead-stand STAND_VISION user=[" .. tostring(user) .. "]", Osi.RemoveStatus, user, "STAND_VISION")
+    logWarn("CleanupStaleState clearing dead Stand state user=[" .. tostring(user) .. "] stand=[" .. tostring(stand) .. "] withdrawing=[" .. tostring(state.withdrawing) .. "] reason=[" .. tostring(reason) .. "]")
+    requestDeleteTemporaryStand(user, stand, "cleanup_dead_stand:" .. tostring(reason))
+    clearStandOwnershipAfterDelete(user, stand, "cleanup_dead_stand:" .. tostring(reason))
+    return
   end
   logStateSnapshot("CleanupStaleState complete", user, stand, StandSystem.GetDefinition(user))
 end
@@ -1020,28 +1389,30 @@ function StandSystem.ApplyProgression(user)
     statusSafe(user, "STAND_MANIFEST_BLOCKED", 6.0, 1, user, "apply_progression_no_definition")
     return
   end
+  def = resolveConcreteStandDefinition(user, def)
 
   local level = StandSystem.GetUserStandProgressLevel(user)
   local maxGranted = StandSystem.UserProgression[user] or 0
   logInfo("ApplyProgression start user=[" .. tostring(user) .. "] level=[" .. tostring(level) .. "] maxGranted=[" .. tostring(maxGranted) .. "] " .. describeDefinition(def))
 
   grantTierPassives(user, def, maxGranted)
-  enforceUserCommandOnlySpellbook(user)
 
   local state = getUserState(user)
-  if state and state.stand and isValidGuid(state.stand) and state.arcana ~= def.id then
+  if state and state.stand and isValidGuid(state.stand) and (state.arcana ~= def.id or state.tierLevel ~= def.tierLevel) then
     logWarn(
-      "Active Stand definition changed; remanifesting"
+      "Active Stand definition or tier changed; remanifesting"
         .. " user=[" .. tostring(user) .. "]"
         .. " oldArcana=[" .. tostring(state.arcana) .. "]"
         .. " newArcana=[" .. tostring(def.id) .. "]"
+        .. " oldTier=[" .. tostring(state.tierLevel) .. "]"
+        .. " newTier=[" .. tostring(def.tierLevel) .. "]"
     )
     StandSystem.Withdraw(user)
     StandSystem.Manifest(user)
     return
   end
   if state and state.stand and isValidGuid(state.stand) then
-    repairStandActionSpellbook(user, state.stand, def)
+    verifyConcreteStandActionOwnership(user, state.stand, def)
     syncUserCapabilitiesToStand(user, state.stand)
   end
 
@@ -1057,17 +1428,35 @@ function StandSystem.Manifest(user)
     statusSafe(user, "STAND_MANIFEST_BLOCKED", 6.0, 1, user, "manifest_non_stand_user")
     return
   end
+
+  local pendingStand, pending = findPendingDespawnForUser(user)
+  if pendingStand then
+    logWarn(
+      "Manifest found stale pending temporary Stand delete; retrying delete and continuing"
+        .. " user=[" .. tostring(user) .. "]"
+        .. " pendingStand=[" .. tostring(pendingStand) .. "]"
+        .. " reason=[" .. tostring(pending and pending.reason) .. "]"
+        .. " phase=[" .. tostring(pending and pending.phase) .. "]"
+        .. " attempts=[" .. tostring(pending and pending.attempts) .. "]"
+        .. " stage=[" .. tostring(getStageSummary(pendingStand)) .. "]"
+    )
+    requestDeleteTemporaryStand(user, pendingStand, "manifest_pending_delete_retry")
+    clearStandOwnershipAfterDelete(user, pendingStand, "manifest_pending_delete_retry")
+  end
+
   StandSystem.ApplyProgression(user)
 
-  if getUserState(user) then
-    logWarn("Manifest skipped: user already has active state user=[" .. tostring(user) .. "] stand=[" .. tostring(getUserState(user).stand) .. "]")
-    logStateSnapshot("Manifest already active", user, getUserState(user).stand, StandSystem.GetDefinition(user))
+  local activeState = getUserState(user)
+  if activeState then
+    logWarn("Manifest skipped: user already has active state user=[" .. tostring(user) .. "] stand=[" .. tostring(activeState.stand) .. "] withdrawing=[" .. tostring(activeState.withdrawing) .. "]")
+    logStateSnapshot("Manifest already active", user, activeState.stand, StandSystem.GetDefinition(user))
     return
   end
 
   local inCombat = Osi.IsInCombat(user) == 1
 
   local def = StandSystem.GetDefinition(user)
+  def = resolveConcreteStandDefinition(user, def)
   if not def or not def.summonTemplate or def.summonTemplate == "" then
     logError("Manifest failed before spawn: missing concrete summonTemplate user=[" .. tostring(user) .. "] " .. describeDefinition(def))
     statusSafe(user, "STAND_MANIFEST_BLOCKED", 6.0, 1, user, "manifest_missing_template")
@@ -1110,6 +1499,8 @@ function StandSystem.Manifest(user)
   StandSystem.Active[user] = {
     stand = stand,
     arcana = def.id,
+    tierLevel = def.tierLevel,
+    characterStat = def.characterStat,
     standName = def.standName or def.displayName,
     baseDamageLinkRatio = def.damageLinkProfile.hpRatio,
     damageLinkRatio = def.damageLinkProfile.hpRatio,
@@ -1145,7 +1536,7 @@ function StandSystem.Manifest(user)
   statusSafe(user, "STAND_SPIRITUAL_LINK", -1, 1, stand, "manifest_link")
   statusSafe(user, "STAND_VISION", -1, 1, stand, "manifest_link")
 
-  repairStandActionSpellbook(user, stand, def)
+  verifyConcreteStandActionOwnership(user, stand, def)
   syncUserCapabilitiesToStand(user, stand)
 
   StandSystem.RefreshStandDerivedBonuses(user)
@@ -1154,28 +1545,62 @@ end
 
 function StandSystem.Withdraw(user)
   ensureTables()
-  logInfo("Withdraw start user=[" .. tostring(user) .. "]")
+  logWarn(
+    "WITHDRAW_TRACE start"
+      .. " user=[" .. tostring(user) .. "]"
+      .. " " .. describeDeleteTarget("userEntity", user)
+      .. " activeStatePresent=[" .. tostring(getUserState(user) ~= nil) .. "]"
+  )
   local state = getUserState(user)
   if not state then
-    logWarn("Withdraw skipped: no active stand state user=[" .. tostring(user) .. "]")
+    logError(
+      "WITHDRAW_TRACE skipped: no active stand state"
+        .. " user=[" .. tostring(user) .. "]"
+        .. " standOwnerReverseForUser=[" .. tostring(StandSystem.StandOwner[user]) .. "]"
+    )
     return
   end
 
   local stand = state.stand
+  logWarn(
+    "WITHDRAW_TRACE active state"
+      .. " user=[" .. tostring(user) .. "]"
+      .. " stand=[" .. tostring(stand) .. "]"
+      .. " arcana=[" .. tostring(state.arcana) .. "]"
+      .. " tierLevel=[" .. tostring(state.tierLevel) .. "]"
+      .. " characterStat=[" .. tostring(state.characterStat) .. "]"
+      .. " ownerForStand=[" .. tostring(StandSystem.StandOwner[stand]) .. "]"
+      .. " " .. describeDeleteTarget("standBeforeWithdraw", stand)
+  )
   if stand then
-    logInfo("Withdraw removing stand user=[" .. tostring(user) .. "] stand=[" .. tostring(stand) .. "]")
-    StandSystem.StandOwner[stand] = nil
-    safeOsi("Osi.RemoveStatus STAND_ENTITY_ACTIVE stand=[" .. tostring(stand) .. "]", Osi.RemoveStatus, stand, "STAND_ENTITY_ACTIVE")
-    safeOsi("Osi.RemovePartyFollower stand=[" .. tostring(stand) .. "] user=[" .. tostring(user) .. "]", Osi.RemovePartyFollower, stand, user)
-    safeOsi("Osi.LeaveCombat stand=[" .. tostring(stand) .. "]", Osi.LeaveCombat, stand)
-    safeOsi("Osi.Die stand=[" .. tostring(stand) .. "] user=[" .. tostring(user) .. "]", Osi.Die, stand, 0, user)
+    logWarn("WITHDRAW_TRACE deleting temporary Stand user=[" .. tostring(user) .. "] stand=[" .. tostring(stand) .. "]")
+    queueStandDelete(user, stand, "withdraw")
+    requestDeleteTemporaryStand(user, stand, "withdraw")
+    logWarn(
+      "WITHDRAW_TRACE before ownership clear"
+        .. " user=[" .. tostring(user) .. "]"
+        .. " stand=[" .. tostring(stand) .. "]"
+        .. " activeStateStand=[" .. tostring(StandSystem.Active[user] and StandSystem.Active[user].stand) .. "]"
+        .. " ownerForStand=[" .. tostring(StandSystem.StandOwner[stand]) .. "]"
+        .. " pendingDelete=[" .. tostring(StandSystem.PendingDespawn[stand] ~= nil) .. "]"
+        .. " " .. describeDeleteTarget("standAfterDeleteRequest", stand)
+    )
+    clearStandOwnershipAfterDelete(user, stand, "withdraw")
+    logWarn(
+      "WITHDRAW_TRACE after ownership clear"
+        .. " user=[" .. tostring(user) .. "]"
+        .. " stand=[" .. tostring(stand) .. "]"
+        .. " activeStateStand=[" .. tostring(StandSystem.Active[user] and StandSystem.Active[user].stand) .. "]"
+        .. " ownerForStand=[" .. tostring(StandSystem.StandOwner[stand]) .. "]"
+        .. " pendingDelete=[" .. tostring(StandSystem.PendingDespawn[stand] ~= nil) .. "]"
+        .. " auditActive=[" .. tostring(StandSystem.DeleteAudit[stand] ~= nil) .. "]"
+        .. " " .. describeDeleteTarget("standAfterOwnershipClear", stand)
+    )
+  else
+    logError("WITHDRAW_TRACE active state had no stand GUID user=[" .. tostring(user) .. "]")
   end
 
-  safeOsi("Osi.RemoveStatus STAND_USER_ACTIVE user=[" .. tostring(user) .. "]", Osi.RemoveStatus, user, "STAND_USER_ACTIVE")
-  safeOsi("Osi.RemoveStatus STAND_SPIRITUAL_LINK user=[" .. tostring(user) .. "]", Osi.RemoveStatus, user, "STAND_SPIRITUAL_LINK")
-  safeOsi("Osi.RemoveStatus STAND_VISION user=[" .. tostring(user) .. "]", Osi.RemoveStatus, user, "STAND_VISION")
-  StandSystem.Active[user] = nil
-  logInfo("Withdraw complete user=[" .. tostring(user) .. "] stand=[" .. tostring(stand) .. "]")
+  logInfo("Withdraw temporary delete queued and ownership cleared user=[" .. tostring(user) .. "] stand=[" .. tostring(stand) .. "]")
 end
 
 function StandSystem.OnStandDamaged(stand, attacker, damage)
@@ -1247,7 +1672,7 @@ function StandSystem.OnTurnStarted(entity)
     return
   end
 
-  enforceStandTether(owner, entity, state)
+  enforceStandTether(owner, entity, state, "stand_turn_started")
 end
 
 function StandSystem.TryIntercept(user, incomingAttacker)
@@ -1391,7 +1816,7 @@ function StandSystem.TriggerTimeStop(user)
   statusSafe(stand, "STAND_TIMESTOP_CASTER", 12.0, 1, user, "timestop")
 
   -- Placeholder capstone behavior: short burst battlefield freeze around Stand.
-  safeOsi("Osi.UseSpell Target_Stand_TimeStopPulse stand=[" .. tostring(stand) .. "]", Osi.UseSpell, stand, "Target_Stand_TimeStopPulse", stand, 0, 0, 0)
+  safeOsi("Osi.UseSpell Zone_Stand_TimeStopPulse stand=[" .. tostring(stand) .. "]", Osi.UseSpell, stand, "Zone_Stand_TimeStopPulse", stand, 0, 0, 0)
 end
 
 Ext.RegisterNetListener("StandPrototype_Manifest", function(cmd, payload, user)
@@ -1411,5 +1836,24 @@ Ext.RegisterNetListener("StandPrototype_Withdraw", function(cmd, payload, user)
     logError("NetListener StandPrototype_Withdraw missing payload cmd=[" .. tostring(cmd) .. "] user=[" .. tostring(user) .. "]")
   end
 end)
+
+Ext.Osiris.RegisterListener("CharacterLeftParty", 1, "after", function(character)
+  StandSystem.OnCharacterLeftParty(character)
+end)
+
+if Ext and Ext.Events and Ext.Events.Tick then
+  Ext.Events.Tick:Subscribe(function(_)
+    StandSystem.ProcessPendingDespawns("server_tick")
+    StandSystem.ProcessDeleteAudits("server_tick")
+    tetherSweepTick = tetherSweepTick + 1
+    if tetherSweepTick < TETHER_SWEEP_TICK_INTERVAL then
+      return
+    end
+    tetherSweepTick = 0
+    StandSystem.EnforceAllTethers("server_tick")
+  end)
+else
+  logError("Tether server tick listener unavailable; close-range Stand tether will only enforce on turn/refresh events")
+end
 
 return StandSystem

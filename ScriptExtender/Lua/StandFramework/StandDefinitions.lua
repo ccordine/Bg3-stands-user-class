@@ -19,6 +19,7 @@ StandDefinitions = {
       standName = "Stand",
       standDisplayNameHandle = "h00010001g0000g0000g0000g00000000009B",
       archetype = "UnawakenedStand",
+      characterStat = "STAND_BASE_BODY",
       entityTemplate = "STANDPROTOTYPE_BASE_STAND_72b4f830-2f41-4f50-8f80-0f7cc1383d01",
       summonTemplate = "STANDPROTOTYPE_BASE_STAND_72b4f830-2f41-4f50-8f80-0f7cc1383d01",
       forceUnarmed = true,
@@ -34,14 +35,20 @@ StandDefinitions = {
       controllable = true,
       userActions = {
         [1] = {
-          "Target_Stand_Manifest",
-          "Target_Stand_Withdraw"
+          "Shout_Stand_Manifest",
+          "Shout_Stand_Withdraw"
         },
         [2] = {
-          "Target_Stand_Reposition"
+          "Shout_Stand_Reposition"
         }
       },
-      standActions = {},
+      standActions = {
+        [1] = {
+          "Target_Stand_BasicStrike",
+          "Target_Stand_BasicBarrage",
+          "Shout_Stand_BasicGuard"
+        }
+      },
       passives = {},
       rules = {
         forceUnarmed = true,
@@ -53,13 +60,6 @@ StandDefinitions = {
       visualStatuses = {
         "GHOST_FX",
         "WRAITH_GLOWING_EYES_TECHNICAL"
-      },
-      inheritedSpellBlocklist = {
-        "Target_LifeDrain_Wraith",
-        "Target_CreateShadow_Wraith",
-        "Target_EtherealJaunt",
-        "Target_EtherealJaunt_Queen",
-        "Target_EtherealJaunt_Spiderling"
       }
     },
     TheStar = {
@@ -68,8 +68,61 @@ StandDefinitions = {
       standName = "Star Platinum",
       standDisplayNameHandle = "h00010001g0000g0000g0000g00000000009A",
       archetype = "CloseRangePowerStand",
-      entityTemplate = "STANDPROTOTYPE_STAR_PLATINUM_6f8d9ac1-1d13-4cb4-aa64-85c2e2bc07c1",
-      summonTemplate = "STANDPROTOTYPE_STAR_PLATINUM_6f8d9ac1-1d13-4cb4-aa64-85c2e2bc07c1",
+      characterStat = "STAND_STAR_PLATINUM_BODY_L3",
+      entityTemplate = "STANDPROTOTYPE_STAR_PLATINUM_L3_f50e6a61-772e-45c9-bfd6-45e68d33a4c0",
+      summonTemplate = "STANDPROTOTYPE_STAR_PLATINUM_L3_f50e6a61-772e-45c9-bfd6-45e68d33a4c0",
+      tiers = {
+        [3] = {
+          characterStat = "STAND_STAR_PLATINUM_BODY_L3",
+          summonTemplate = "STANDPROTOTYPE_STAR_PLATINUM_L3_f50e6a61-772e-45c9-bfd6-45e68d33a4c0",
+          actions = {
+            "Target_Stand_Barrage",
+            "Shout_Stand_Intercept"
+          }
+        },
+        [5] = {
+          characterStat = "STAND_STAR_PLATINUM_BODY_L5",
+          summonTemplate = "STANDPROTOTYPE_STAR_PLATINUM_L5_7e39fd60-9bce-44b4-9bcd-e600494dbcd8",
+          actions = {
+            "Target_Stand_Barrage",
+            "Shout_Stand_Intercept",
+            "Target_Stand_StarFinger"
+          }
+        },
+        [6] = {
+          characterStat = "STAND_STAR_PLATINUM_BODY_L6",
+          summonTemplate = "STANDPROTOTYPE_STAR_PLATINUM_L6_fb4208dd-761b-448c-99d8-ef8fbabc5077",
+          actions = {
+            "Target_Stand_Barrage",
+            "Shout_Stand_Intercept",
+            "Target_Stand_StarFinger",
+            "Target_Stand_Rush"
+          }
+        },
+        [10] = {
+          characterStat = "STAND_STAR_PLATINUM_BODY_L10",
+          summonTemplate = "STANDPROTOTYPE_STAR_PLATINUM_L10_f3934f6f-2bc6-4693-8055-2ee6d8c5816c",
+          actions = {
+            "Target_Stand_Barrage",
+            "Shout_Stand_Intercept",
+            "Target_Stand_StarFinger",
+            "Target_Stand_Rush",
+            "Target_Stand_RelentlessBarrage"
+          }
+        },
+        [12] = {
+          characterStat = "STAND_STAR_PLATINUM_BODY_L12",
+          summonTemplate = "STANDPROTOTYPE_STAR_PLATINUM_L12_4986fbe6-dc51-44cd-a617-bd54c29c5bf9",
+          actions = {
+            "Target_Stand_Barrage",
+            "Shout_Stand_Intercept",
+            "Target_Stand_StarFinger",
+            "Target_Stand_Rush",
+            "Target_Stand_RelentlessBarrage",
+            "Shout_Stand_TimeStop"
+          }
+        }
+      },
       forceUnarmed = true,
       baseStandACBonus = 3,
       midStandACBonus = 1,
@@ -87,16 +140,16 @@ StandDefinitions = {
       controllable = true,
       userActions = {
         [3] = {
-          "Target_Stand_Manifest",
-          "Target_Stand_Withdraw",
-          "Target_Stand_Reposition",
-          "Target_Stand_CombatPrediction"
+          "Shout_Stand_Manifest",
+          "Shout_Stand_Withdraw",
+          "Shout_Stand_Reposition",
+          "Shout_Stand_CombatPrediction"
         }
       },
       standActions = {
         [3] = {
           "Target_Stand_Barrage",
-          "Target_Stand_Intercept"
+          "Shout_Stand_Intercept"
         },
         [5] = {
           "Target_Stand_StarFinger"
@@ -108,7 +161,7 @@ StandDefinitions = {
           "Target_Stand_RelentlessBarrage"
         },
         [12] = {
-          "Target_Stand_TimeStop"
+          "Shout_Stand_TimeStop"
         }
       },
       passives = {
@@ -139,13 +192,6 @@ StandDefinitions = {
       standEquipmentTemplates = {
         -- Barbarian starter clothing gives Star Platinum a close stock "warrior" silhouette.
         "f6599c3f-cfcd-4721-9cc2-1df5d8ff0154"
-      },
-      inheritedSpellBlocklist = {
-        "Target_LifeDrain_Wraith",
-        "Target_CreateShadow_Wraith",
-        "Target_EtherealJaunt",
-        "Target_EtherealJaunt_Queen",
-        "Target_EtherealJaunt_Spiderling"
       }
     }
   }

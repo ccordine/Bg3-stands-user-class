@@ -47,11 +47,11 @@
           <attribute id="Icon" type="FixedString" value="eac7c851-cb57-75bc-8d07-683b79d65f70-_(Icon_Human_Male_Strong)" />
           <attribute id="LevelName" type="FixedString" value="" />
           <attribute id="LightID" type="FixedString" value="" />
-          <attribute id="MapKey" type="FixedString" value="6f8d9ac1-1d13-4cb4-aa64-85c2e2bc07c1" />
-          <attribute id="Name" type="LSString" value="STANDPROTOTYPE_STAR_PLATINUM" />
+          <attribute id="MapKey" type="FixedString" value="f50e6a61-772e-45c9-bfd6-45e68d33a4c0" />
+          <attribute id="Name" type="LSString" value="STANDPROTOTYPE_STAR_PLATINUM_L3" />
           <attribute id="ParentTemplateId" type="FixedString" value="12c0a711-1459-48e2-a50e-7b792eee0918" />
           <attribute id="PhysicsTemplate" type="FixedString" value="a644d1d6-4098-fc0a-c26b-b016d7457ebd" />
-          <attribute id="Stats" type="FixedString" value="STAND_STAR_PLATINUM_BODY" />
+          <attribute id="Stats" type="FixedString" value="STAND_STAR_PLATINUM_BODY_L3" />
           <attribute id="Type" type="FixedString" value="character" />
           <attribute id="_OriginalFileVersion_" type="int64" value="144115207403209032" />
           <children>
@@ -73,6 +73,74 @@
               </children>
             </node>
           </children>
+        </node>
+        <node id="GameObjects">
+          <attribute id="DisplayName" type="TranslatedString" handle="h00010001g0000g0000g0000g00000000009A" version="1" />
+          <attribute id="CharacterVisualResourceID" type="FixedString" value="eac7c851-cb57-75bc-8d07-683b79d65f70" />
+          <attribute id="EquipmentRace" type="guid" value="e39505f7-f576-4e70-a99e-8e29cd381a11" />
+          <attribute id="GeneratePortrait" type="LSString" value="Icon_Human_Male_Strong" />
+          <attribute id="Icon" type="FixedString" value="eac7c851-cb57-75bc-8d07-683b79d65f70-_(Icon_Human_Male_Strong)" />
+          <attribute id="LevelName" type="FixedString" value="" />
+          <attribute id="LightID" type="FixedString" value="" />
+          <attribute id="MapKey" type="FixedString" value="7e39fd60-9bce-44b4-9bcd-e600494dbcd8" />
+          <attribute id="Name" type="LSString" value="STANDPROTOTYPE_STAR_PLATINUM_L5" />
+          <attribute id="ParentTemplateId" type="FixedString" value="12c0a711-1459-48e2-a50e-7b792eee0918" />
+          <attribute id="PhysicsTemplate" type="FixedString" value="a644d1d6-4098-fc0a-c26b-b016d7457ebd" />
+          <attribute id="Stats" type="FixedString" value="STAND_STAR_PLATINUM_BODY_L5" />
+          <attribute id="Type" type="FixedString" value="character" />
+          <attribute id="_OriginalFileVersion_" type="int64" value="144115207403209032" />
+          <children><node id="LocomotionParams" /></children>
+        </node>
+        <node id="GameObjects">
+          <attribute id="DisplayName" type="TranslatedString" handle="h00010001g0000g0000g0000g00000000009A" version="1" />
+          <attribute id="CharacterVisualResourceID" type="FixedString" value="eac7c851-cb57-75bc-8d07-683b79d65f70" />
+          <attribute id="EquipmentRace" type="guid" value="e39505f7-f576-4e70-a99e-8e29cd381a11" />
+          <attribute id="GeneratePortrait" type="LSString" value="Icon_Human_Male_Strong" />
+          <attribute id="Icon" type="FixedString" value="eac7c851-cb57-75bc-8d07-683b79d65f70-_(Icon_Human_Male_Strong)" />
+          <attribute id="LevelName" type="FixedString" value="" />
+          <attribute id="LightID" type="FixedString" value="" />
+          <attribute id="MapKey" type="FixedString" value="fb4208dd-761b-448c-99d8-ef8fbabc5077" />
+          <attribute id="Name" type="LSString" value="STANDPROTOTYPE_STAR_PLATINUM_L6" />
+          <attribute id="ParentTemplateId" type="FixedString" value="12c0a711-1459-48e2-a50e-7b792eee0918" />
+          <attribute id="PhysicsTemplate" type="FixedString" value="a644d1d6-4098-fc0a-c26b-b016d7457ebd" />
+          <attribute id="Stats" type="FixedString" value="STAND_STAR_PLATINUM_BODY_L6" />
+          <attribute id="Type" type="FixedString" value="character" />
+          <attribute id="_OriginalFileVersion_" type="int64" value="144115207403209032" />
+          <children><node id="LocomotionParams" /></children>
+        </node>
+        <node id="GameObjects">
+          <attribute id="DisplayName" type="TranslatedString" handle="h00010001g0000g0000g0000g00000000009A" version="1" />
+          <attribute id="CharacterVisualResourceID" type="FixedString" value="eac7c851-cb57-75bc-8d07-683b79d65f70" />
+          <attribute id="EquipmentRace" type="guid" value="e39505f7-f576-4e70-a99e-8e29cd381a11" />
+          <attribute id="GeneratePortrait" type="LSString" value="Icon_Human_Male_Strong" />
+          <attribute id="Icon" type="FixedString" value="eac7c851-cb57-75bc-8d07-683b79d65f70-_(Icon_Human_Male_Strong)" />
+          <attribute id="LevelName" type="FixedString" value="" />
+          <attribute id="LightID" type="FixedString" value="" />
+          <attribute id="MapKey" type="FixedString" value="f3934f6f-2bc6-4693-8055-2ee6d8c5816c" />
+          <attribute id="Name" type="LSString" value="STANDPROTOTYPE_STAR_PLATINUM_L10" />
+          <attribute id="ParentTemplateId" type="FixedString" value="12c0a711-1459-48e2-a50e-7b792eee0918" />
+          <attribute id="PhysicsTemplate" type="FixedString" value="a644d1d6-4098-fc0a-c26b-b016d7457ebd" />
+          <attribute id="Stats" type="FixedString" value="STAND_STAR_PLATINUM_BODY_L10" />
+          <attribute id="Type" type="FixedString" value="character" />
+          <attribute id="_OriginalFileVersion_" type="int64" value="144115207403209032" />
+          <children><node id="LocomotionParams" /></children>
+        </node>
+        <node id="GameObjects">
+          <attribute id="DisplayName" type="TranslatedString" handle="h00010001g0000g0000g0000g00000000009A" version="1" />
+          <attribute id="CharacterVisualResourceID" type="FixedString" value="eac7c851-cb57-75bc-8d07-683b79d65f70" />
+          <attribute id="EquipmentRace" type="guid" value="e39505f7-f576-4e70-a99e-8e29cd381a11" />
+          <attribute id="GeneratePortrait" type="LSString" value="Icon_Human_Male_Strong" />
+          <attribute id="Icon" type="FixedString" value="eac7c851-cb57-75bc-8d07-683b79d65f70-_(Icon_Human_Male_Strong)" />
+          <attribute id="LevelName" type="FixedString" value="" />
+          <attribute id="LightID" type="FixedString" value="" />
+          <attribute id="MapKey" type="FixedString" value="4986fbe6-dc51-44cd-a617-bd54c29c5bf9" />
+          <attribute id="Name" type="LSString" value="STANDPROTOTYPE_STAR_PLATINUM_L12" />
+          <attribute id="ParentTemplateId" type="FixedString" value="12c0a711-1459-48e2-a50e-7b792eee0918" />
+          <attribute id="PhysicsTemplate" type="FixedString" value="a644d1d6-4098-fc0a-c26b-b016d7457ebd" />
+          <attribute id="Stats" type="FixedString" value="STAND_STAR_PLATINUM_BODY_L12" />
+          <attribute id="Type" type="FixedString" value="character" />
+          <attribute id="_OriginalFileVersion_" type="int64" value="144115207403209032" />
+          <children><node id="LocomotionParams" /></children>
         </node>
       </children>
     </node>

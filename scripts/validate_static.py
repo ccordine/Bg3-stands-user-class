@@ -79,6 +79,54 @@ spt = star_platinum_template_file.read_text() if star_platinum_template_file.exi
 bst = base_stand_template_file.read_text() if base_stand_template_file.exists() else ''
 mrt = merged_root_template_source_file.read_text() if merged_root_template_source_file.exists() else ''
 
+def stats_entry_block(text: str, entry_name: str) -> str:
+    match = re.search(rf'new entry "{re.escape(entry_name)}"\n([\s\S]*?)(?=\nnew entry "|\Z)', text)
+    return match.group(1) if match else ''
+
+def collect_handle_texts(label: str, text: str):
+    out = {}
+    for kind, handle, value in re.findall(r'data "(DisplayName|Description)" "([^";]+);([^"]*)"', text):
+        out.setdefault(handle, set()).add(value)
+    return out
+
+inline_handle_texts = {}
+for source_label, source_text in [
+    ('spells', sp),
+    ('passives', pa),
+    ('items', item_stats),
+]:
+    for handle, values in collect_handle_texts(source_label, source_text).items():
+        inline_handle_texts.setdefault(handle, set()).update(values)
+
+loc_handle_texts = {}
+for handle, value in re.findall(r'<content contentuid="([^"]+)" version="1">([\s\S]*?)</content>', loc):
+    loc_handle_texts.setdefault(handle, set()).add(value)
+
+inline_handle_collisions = {
+    handle: values
+    for handle, values in inline_handle_texts.items()
+    if len(values) > 1
+}
+loc_handle_collisions = {
+    handle: values
+    for handle, values in loc_handle_texts.items()
+    if len(values) > 1
+}
+inline_loca_mismatches = {
+    handle: (inline_handle_texts[handle], loc_handle_texts.get(handle, set()))
+    for handle in inline_handle_texts
+    if handle in loc_handle_texts and inline_handle_texts[handle] != loc_handle_texts[handle]
+}
+ok('No stat DisplayName/Description localization handle collisions',
+   not inline_handle_collisions,
+   '; '.join(f'{h}: {sorted(v)}' for h, v in inline_handle_collisions.items()))
+ok('No duplicate localization content handles with conflicting text',
+   not loc_handle_collisions,
+   '; '.join(f'{h}: {sorted(v)}' for h, v in loc_handle_collisions.items()))
+ok('Inline stat localization handles match localization XML text',
+   not inline_loca_mismatches,
+   '; '.join(f'{h}: stats={sorted(v[0])} loca={sorted(v[1])}' for h, v in inline_loca_mismatches.items()))
+
 # StandUser/TheStar records
 class_chunks = re.findall(r'<node id="ClassDescription">([\s\S]*?)</node>', c)
 standuser_chunks = [
@@ -231,6 +279,19 @@ missing_cast_text_event = []
 missing_spell_animation = []
 target_missing_roll_or_props = []
 target_missing_radius = []
+spell_prefix_mismatches = []
+stand_technique_missing_cost = []
+stand_technique_empty_cost = []
+
+command_spell_ids = {
+    'Shout_Stand_Manifest',
+    'Shout_Stand_Withdraw',
+    'Shout_Stand_Reposition',
+    'Shout_Stand_CombatPrediction',
+}
+internal_spell_ids = {
+    'Zone_Stand_TimeStopPulse',
+}
 
 for spell_name, body in spell_entries:
     if 'data "CastTextEvent"' not in body:
@@ -240,6 +301,15 @@ for spell_name, body in spell_entries:
 
     spell_type_match = re.search(r'data "SpellType" "([^"]+)"', body)
     spell_type = spell_type_match.group(1) if spell_type_match else ''
+    spell_prefix = spell_name.split('_', 1)[0] if '_' in spell_name else ''
+    if spell_prefix in {'Target', 'Shout', 'Zone', 'Projectile'} and spell_prefix != spell_type:
+        spell_prefix_mismatches.append(f'{spell_name}: prefix={spell_prefix} SpellType={spell_type}')
+    if '_Stand_' in spell_name and spell_name not in command_spell_ids and spell_name not in internal_spell_ids:
+        use_cost_match = re.search(r'data "UseCosts" "([^"]*)"', body)
+        if not use_cost_match:
+            stand_technique_missing_cost.append(spell_name)
+        elif use_cost_match.group(1).strip() == '':
+            stand_technique_empty_cost.append(spell_name)
     if spell_type == 'Target':
         has_roll = 'data "SpellRoll"' in body
         has_props = 'data "SpellProperties"' in body
@@ -254,12 +324,35 @@ ok('All SpellData entries define CastTextEvent',
 ok('All SpellData entries define SpellAnimation',
    not missing_spell_animation,
    ', '.join(missing_spell_animation) if missing_spell_animation else 'ok')
+ok('Custom Stand SpellData entries are self-contained and do not inherit existing spells/actions',
+   'using "' not in sp,
+   'Do not use SpellData inheritance for Stand actions; inherited class/spell metadata caused spellbook/plus-sign UI regressions.')
 ok('Target SpellData entries define SpellRoll or SpellProperties',
    not target_missing_roll_or_props,
    ', '.join(target_missing_roll_or_props) if target_missing_roll_or_props else 'ok')
 ok('Target SpellData entries define TargetRadius',
    not target_missing_radius,
    ', '.join(target_missing_radius) if target_missing_radius else 'ok')
+ok('SpellData technical prefixes match SpellType',
+   not spell_prefix_mismatches,
+   '; '.join(spell_prefix_mismatches) if spell_prefix_mismatches else 'ok')
+ok('Every Stand combat technique has explicit non-empty UseCosts',
+   not stand_technique_missing_cost and not stand_technique_empty_cost,
+   'missing=' + ', '.join(stand_technique_missing_cost) + ' empty=' + ', '.join(stand_technique_empty_cost)
+   if (stand_technique_missing_cost or stand_technique_empty_cost) else 'ok')
+
+spell_entry_names = {name for name, _ in spell_entries}
+vanilla_spell_entry_names = {
+    # Data-owned baseline action from Shared.pak. This is intentionally unlocked
+    # on Stand bodies as a control case: if vanilla unarmed also cannot target,
+    # the issue is actor/control state, not custom SpellData.
+    'Target_UnarmedAttack',
+}
+unlock_spell_refs = set(re.findall(r'UnlockSpell\(([^)]+)\)', char_stats + '\n' + pa + '\n' + item_stats))
+missing_unlock_spell_refs = sorted(ref for ref in unlock_spell_refs if ref not in spell_entry_names and ref not in vanilla_spell_entry_names)
+ok('Character/passive/item UnlockSpell references point to real SpellData entries',
+   not missing_unlock_spell_refs,
+   ', '.join(missing_unlock_spell_refs) if missing_unlock_spell_refs else 'ok')
 
 # Manifest/Withdraw only via progression (not in base passive)
 base_passive_line = re.search(
@@ -267,7 +360,7 @@ base_passive_line = re.search(
     pa
 )
 base_props = base_passive_line.group(1) if base_passive_line else ''
-ok('Base class passive does not directly grant Manifest/Withdraw', 'Target_Stand_Manifest' not in base_props and 'Target_Stand_Withdraw' not in base_props, base_props)
+ok('Base class passive does not directly grant Manifest/Withdraw', 'Shout_Stand_Manifest' not in base_props and 'Shout_Stand_Withdraw' not in base_props, base_props)
 ok('Manifest/Withdraw are progression granted via AddSpells list',
    'AddSpells(a6f8f7c9-8475-46f5-9f7f-24f9dcb7c9a1)' in p)
 standuser_l1_chunk = ''
@@ -308,7 +401,7 @@ ok('Level 2 grants user anchor/resource loop',
    and 'STAND_USER_SPIRIT_POOL_TIER1' in standuser_l2_chunk)
 
 combat_reading_cost_ok = bool(re.search(
-    r'new entry "Target_Stand_CombatPrediction"(?:\s+"[^"]+")?[\s\S]*?data "UseCosts" "BonusActionPoint:1;KiPoint:1"',
+    r'new entry "Shout_Stand_CombatPrediction"(?:\s+"[^"]+")?[\s\S]*?data "UseCosts" "BonusActionPoint:1;KiPoint:1"',
     sp
 ))
 ok('Combat Reading consumes KiPoint resource', combat_reading_cost_ok)
@@ -319,64 +412,123 @@ def spell_has_use_cost(spell_name: str, use_cost: str) -> bool:
     return bool(match and f'data "UseCosts" "{use_cost}"' in match.group(1))
 
 ok('Manifest and Withdraw are free actions',
-   spell_has_use_cost('Target_Stand_Manifest', '')
-   and spell_has_use_cost('Target_Stand_Withdraw', ''))
+   spell_has_use_cost('Shout_Stand_Manifest', '')
+   and spell_has_use_cost('Shout_Stand_Withdraw', ''))
 ok('Stand attack techniques use action economy',
    all(spell_has_use_cost(name, 'ActionPoint:1') for name in [
+       'Target_Stand_BasicStrike',
+       'Target_Stand_BasicBarrage',
        'Target_Stand_Barrage',
        'Target_Stand_Rush',
        'Target_Stand_StarFinger',
        'Target_Stand_RelentlessBarrage',
    ]))
+ok('Base Stand Guard is a manual bonus-action guard button',
+   spell_has_use_cost('Shout_Stand_BasicGuard', 'BonusActionPoint:1'))
 ok('Time Stop is a bonus action capstone',
-   spell_has_use_cost('Target_Stand_TimeStop', 'BonusActionPoint:1'))
+   spell_has_use_cost('Shout_Stand_TimeStop', 'BonusActionPoint:1'))
+stand_martial_action_ids = [
+    'Target_Stand_BasicStrike',
+    'Target_Stand_BasicBarrage',
+    'Target_Stand_Barrage',
+    'Target_Stand_Rush',
+    'Target_Stand_StarFinger',
+    'Target_Stand_RelentlessBarrage',
+]
+stand_martial_blocks = {
+    spell_id: stats_entry_block(sp, spell_id)
+    for spell_id in stand_martial_action_ids
+}
+ok('Stand martial target techniques do not inherit spell/class selector actions',
+   all('using "StunningStrike_Unarmed"' not in block and 'SpellStyleGroup" "Class"' not in block for block in stand_martial_blocks.values())
+   and 'StunningStrike_Unarmed' not in sp,
+   'StunningStrike_Unarmed and SpellStyleGroup Class create spell-like/upcast/ability-selector UI for martial techniques.')
+ok('Stand martial target techniques expose unarmed attack UX',
+   all('data "SpellRoll" "Attack(AttackType.MeleeUnarmedAttack)"' in block
+       and 'data "TooltipAttackSave" "MeleeUnarmedAttack"' in block
+       and 'data "PreviewCursor" "Melee"' in block
+       and 'data "VerbalIntent" "Damage"' in block
+       and 'data "TargetConditions" "not Self() and not Dead()"' in block
+       for block in stand_martial_blocks.values()))
+ok('Stand martial target techniques mirror vanilla unarmed action cast contract',
+   all('data "Cooldown"' not in block for block in stand_martial_blocks.values())
+   and all('8b8bb757-21ce-4e02-a2f3-97d55cf2f90b' in block for block in stand_martial_blocks.values())
+   and all('data "TargetCeiling" "0"' in block and 'data "TargetFloor" ".25"' in block for block in stand_martial_blocks.values()),
+   'Target_UnarmedAttack has no per-turn cooldown, has TargetCeiling/TargetFloor, and uses the standard unarmed melee animation row.')
+ok('Stand martial target techniques do not require a melee weapon range',
+   all('data "WeaponTypes" "Melee"' not in block and 'data "WeaponType" "Melee"' not in block for block in stand_martial_blocks.values())
+   and all('data "TargetRadius" "MeleeMainWeaponRange"' not in block for block in stand_martial_blocks.values())
+   and all('data "TargetRadius" "2.5"' in stand_martial_blocks[spell_id] for spell_id in [
+       'Target_Stand_BasicStrike',
+       'Target_Stand_BasicBarrage',
+       'Target_Stand_Barrage',
+       'Target_Stand_Rush',
+       'Target_Stand_RelentlessBarrage',
+   ])
+   and 'data "TargetRadius" "4"' in stand_martial_blocks['Target_Stand_StarFinger'],
+   'Unarmed Stand techniques must not depend on an equipped melee weapon range; use fixed close-range reach to avoid collision/pathing failures on small or flying targets.')
+ok('Stand-owned techniques do not use class spell presentation metadata',
+   all('SpellStyleGroup" "Class"' not in stats_entry_block(sp, spell_id) for spell_id in stand_martial_action_ids + [
+       'Shout_Stand_BasicGuard',
+       'Shout_Stand_Intercept',
+       'Shout_Stand_TimeStop',
+   ]),
+   'Stand-owned actions should present as innate techniques, not class spell-selection actions.')
 
 # Lua progression structure
 base_stand_match = re.search(r'BaseStand\s*=\s*\{([\s\S]*?)\n\s*\},\n\s*TheStar\s*=', sd)
 the_star_match = re.search(r'TheStar\s*=\s*\{([\s\S]*?)\n\s*\}\n\s*\}', sd)
 base_stand_block = base_stand_match.group(1) if base_stand_match else ''
 the_star_block = the_star_match.group(1) if the_star_match else ''
-ok('StandDefinitions has a generic BaseStand before subclass selection',
+ok('BaseStand exists only as the default unawakened Stand, not as a TheStar fallback',
    'defaultArcana = "BaseStand"' in sd
    and 'BaseStand' in sd
    and 'standName = "Stand"' in base_stand_block
    and 'summonTemplate = "STANDPROTOTYPE_BASE_STAND_72b4f830-2f41-4f50-8f80-0f7cc1383d01"' in base_stand_block
    and 'fallbackSummonTemplate' not in base_stand_block
    and '[1]' in base_stand_block
-   and 'Target_Stand_Barrage' not in base_stand_block)
-ok('The Star subclass does not start as the default level 1 Stand',
+   and 'Target_Stand_BasicStrike' in base_stand_block
+   and 'Target_Stand_BasicBarrage' in base_stand_block
+   and 'Shout_Stand_BasicGuard' in base_stand_block
+   and 'Target_Stand_Barrage' not in base_stand_block
+   and 'Target_Stand_StarFinger' not in base_stand_block
+   and 'Shout_Stand_TimeStop' not in base_stand_block
+   and 'Shout_Stand_Intercept' not in base_stand_block)
+ok('The Star never references BaseStand or a fallback template',
    '[1]' not in the_star_block
    and 'standName = "Star Platinum"' in the_star_block
-   and 'summonTemplate = "STANDPROTOTYPE_STAR_PLATINUM_6f8d9ac1-1d13-4cb4-aa64-85c2e2bc07c1"' in the_star_block
-   and 'fallbackSummonTemplate' not in the_star_block)
+   and 'summonTemplate = "STANDPROTOTYPE_STAR_PLATINUM_L3_f50e6a61-772e-45c9-bfd6-45e68d33a4c0"' in the_star_block
+   and 'fallbackSummonTemplate' not in the_star_block
+   and 'STANDPROTOTYPE_BASE_STAND' not in the_star_block
+   and 'STAND_BASE_BODY' not in the_star_block)
 ok('Stand summonTemplate values use official root-template Name_UUID format for CreateAt',
    'summonTemplate = "STANDPROTOTYPE_BASE_STAND_72b4f830-2f41-4f50-8f80-0f7cc1383d01"' in sd
    and 'entityTemplate = "STANDPROTOTYPE_BASE_STAND_72b4f830-2f41-4f50-8f80-0f7cc1383d01"' in sd
-   and 'summonTemplate = "STANDPROTOTYPE_STAR_PLATINUM_6f8d9ac1-1d13-4cb4-aa64-85c2e2bc07c1"' in sd
-   and 'entityTemplate = "STANDPROTOTYPE_STAR_PLATINUM_6f8d9ac1-1d13-4cb4-aa64-85c2e2bc07c1"' in sd)
+   and 'summonTemplate = "STANDPROTOTYPE_STAR_PLATINUM_L3_f50e6a61-772e-45c9-bfd6-45e68d33a4c0"' in sd
+   and 'entityTemplate = "STANDPROTOTYPE_STAR_PLATINUM_L3_f50e6a61-772e-45c9-bfd6-45e68d33a4c0"' in sd)
 ok('TheStar has no fallbackSummonTemplate',
    'fallbackSummonTemplate' not in the_star_block)
 ok('TheStar does not reference stock strong-human fallback',
    'BASE_Humans_Male_Strong' not in the_star_block)
 ok('StandDefinitions keeps user actions separate from stand actions',
-   'userActions' in sd and 'standActions' in sd and 'Target_Stand_Manifest' in sd and 'Target_Stand_Barrage' in sd)
+   'userActions' in sd and 'standActions' in sd and 'Shout_Stand_Manifest' in sd and 'Target_Stand_Barrage' in sd)
 ok('StandDefinitions has requested Star Platinum stand action ids',
    all(x in sd for x in [
        'Target_Stand_Barrage',
-       'Target_Stand_Intercept',
+       'Shout_Stand_Intercept',
        'Target_Stand_StarFinger',
        'Target_Stand_Rush',
        'Target_Stand_RelentlessBarrage',
-       'Target_Stand_TimeStop',
+       'Shout_Stand_TimeStop',
    ]))
 ok('The Star static spell lists do not directly grant stand combat spells',
    not any(x in spl for x in [
        'Target_Stand_Barrage',
-       'Target_Stand_Intercept',
+       'Shout_Stand_Intercept',
        'Target_Stand_Rush',
        'Target_Stand_StarFinger',
        'Target_Stand_RelentlessBarrage',
-       'Target_Stand_TimeStop',
+       'Shout_Stand_TimeStop',
    ]))
 ok('Obsolete Stand combat spell entries removed',
    all(x not in sp and x not in sd and x not in ls for x in [
@@ -388,34 +540,22 @@ ok('Obsolete RushUltimate spell entry removed',
    'Target_Stand_RushUltimate' not in sp
    and 'Target_Stand_RushUltimate' not in sd
    and 'Target_Stand_RushUltimate' not in ls)
-ok('Runtime removes stand combat spells from the user spellbook',
-   'enforceUserCommandOnlySpellbook' in ls and 'USER_FORBIDDEN_STAND_SPELLS' in ls)
-user_forbidden_match = re.search(r'USER_FORBIDDEN_STAND_SPELLS\s*=\s*\{([\s\S]*?)\n\}', ls)
-user_forbidden_block = user_forbidden_match.group(1) if user_forbidden_match else ''
-ok('Runtime user forbidden spell block only contains current Star combat actions',
-   all(x in user_forbidden_block for x in [
-       'Target_Stand_Barrage',
-       'Target_Stand_Intercept',
-       'Target_Stand_StarFinger',
-       'Target_Stand_Rush',
-       'Target_Stand_RelentlessBarrage',
-       'Target_Stand_TimeStop',
-   ])
-   and all(x not in user_forbidden_block for x in [
-       'Target_Stand_HeavyPunch',
-       'Target_Stand_PrecisionCounter',
-       'Target_Stand_LeapCloser',
-   ]))
+ok('Runtime does not manage Stand spellbooks through AddSpell/RemoveSpell',
+   'Osi.AddSpell' not in ls
+   and 'Osi.RemoveSpell' not in ls
+   and 'repairStandActionSpellbook' not in ls
+   and 'enforceUserCommandOnlySpellbook' not in ls
+   and 'USER_FORBIDDEN_STAND_SPELLS' not in ls
+   and 'GLOBAL_INHERITED_STAND_SPELL_BLOCKLIST' not in ls)
 ok('Runtime does not grant player command spells redundantly',
    'Osi.AddSpell(user' not in ls
    and 'grantUserTierActions' not in ls)
-ok('Runtime stand AddSpell path is named and logged as repair fallback',
-   'repairStandActionSpellbook(user, state.stand, def)' in ls
-   and 'collectActionsByLevel(def.standActions' in ls
-   and 'Runtime AddSpell repair fallback' in ls
+ok('Runtime only logs concrete Stand action ownership',
+   'verifyConcreteStandActionOwnership(user, state.stand, def)' in ls
+   and 'collectActionsByLevel(def and def.standActions' in ls
+   and 'ENABLE_RUNTIME_STAND_ACTION_REPAIR = false' in ls
+   and 'Lua will not add/remove/lock Stand spells' in ls
    and 'grantStandTierSpells' not in ls)
-warn('Runtime AddSpell remains as stand action repair fallback',
-     'Concrete template/stat ownership is primary; repairStandActionSpellbook logs every AddSpell repair.')
 ok('Runtime does not strip user weapons',
    'enforceCharacterUnarmed(user)' not in ls
    and 'enforceCharacterUnarmed(stand)' in ls)
@@ -445,6 +585,13 @@ ok('Spell handlers log Stand events and failures',
        'Spell handler error',
        'AttackedBy event',
    ]))
+spell_handlers_text = (root / 'ScriptExtender/Lua/StandFramework/SpellHandlers.lua').read_text()
+ok('Runtime logs caster/spell ownership for Stand technique usage',
+   'UsingSpell event caster=[' in spell_handlers_text
+   and 'spell=[' in spell_handlers_text
+   and 'owner=[' in spell_handlers_text
+   and 'controlTarget=[' in spell_handlers_text
+   and 'direct SpellData technique has no Lua route' in spell_handlers_text)
 ok('Runtime progression uses stand-user progression level helper (multiclass-safe gate)', 'GetUserStandProgressLevel' in ls)
 ok('Runtime has stale state cleanup helper', 'CleanupStaleState' in ls)
 ok('Runtime supports level 5 Star Finger gate', 'STAND_USER_LEVEL5_DISCIPLINE_NOTE' in ls and 'return 5' in ls)
@@ -498,16 +645,27 @@ ok('Stand User starting equipment has dedicated localization',
    ]))
 ok('Stand command shouts are class actions, not spell-like casts',
    all(f'new entry "{spell}"' in sp for spell in [
-       'Target_Stand_Manifest',
-       'Target_Stand_Withdraw',
-       'Target_Stand_Reposition',
-       'Target_Stand_Intercept',
-       'Target_Stand_CombatPrediction',
-       'Target_Stand_TimeStop',
+       'Shout_Stand_Manifest',
+       'Shout_Stand_Withdraw',
+       'Shout_Stand_Reposition',
+       'Shout_Stand_Intercept',
+       'Shout_Stand_CombatPrediction',
+       'Shout_Stand_TimeStop',
    ])
    and 'data "SpellFlags" "IsSpell;HasVerbalComponent;HasSomaticComponent"' not in sp
    and 'data "Ability" "Charisma"' not in sp
    and 'data "Ability" "Wisdom"' not in sp)
+ok('Stand self-technique shouts have concrete SpellProperties',
+   all(
+       'data "SpellProperties"' in stats_entry_block(sp, spell)
+       for spell in [
+           'Shout_Stand_BasicGuard',
+           'Shout_Stand_Intercept',
+           'Shout_Stand_CombatPrediction',
+           'Shout_Stand_TimeStop',
+       ]
+   ),
+   'Official spell authoring expects SpellRoll or SpellProperties; Lua may add behavior, but these shouts still need concrete SpellData effects.')
 ok('Runtime applies Star Platinum presentation hooks',
    'applyStandPresentation' in ls
    and 'GHOST_FX' in sd
@@ -524,12 +682,32 @@ ok('Star Platinum has its own display-name handle',
 ok('ORA Barrage is a fast multi-hit action',
    'new entry "Target_Stand_Barrage"' in sp
    and 'DealDamage(1d6+1,Bludgeoning);DealDamage(1d6+1,Bludgeoning);DealDamage(1d6+1,Bludgeoning)' in sp
-   and 'c9f9e5ed-e39f-47a8-bf43-4013ec1a0ce3,,;,,;,,;,,;,,;,,;,,;,,;,,' in sp)
-ok('Runtime strips inherited Specter/Wraith spell kit from the stand',
-   'GLOBAL_INHERITED_STAND_SPELL_BLOCKLIST' in ls
-   and 'inheritedSpellBlocklist' in sd
-   and 'Target_LifeDrain_Wraith' in ls
-   and 'Target_CreateShadow_Wraith' in sd)
+   and '8b8bb757-21ce-4e02-a2f3-97d55cf2f90b' in stats_entry_block(sp, 'Target_Stand_Barrage'))
+ok('Runtime does not strip or lock Stand actions; BG3 data owns the action set',
+   'inheritedSpellBlocklist' not in sd
+   and 'Target_LifeDrain_Wraith' not in ls
+   and 'Target_CreateShadow_Wraith' not in ls
+   and 'Removing locked future stand action' not in ls)
+ok('Manifest creates Stand entities as temporary characters',
+   'pcall(Osi.CreateAt, template, sx, y, sz, 1, 0, "")' in ls
+   and 'pcall(Osi.CreateAtObject, template, user, 1, 0, "", 1)' in ls,
+   'CreateAt/CreateAtObject must pass Temporary=1 so RequestDeleteTemporary can delete the Stand.')
+ok('Withdraw deletes temporary Stand entities directly',
+   'function StandSystem.Withdraw' in ls
+   and 'queueStandDelete(user, stand, "withdraw")' in ls
+   and 'requestDeleteTemporaryStand(user, stand, "withdraw")' in ls
+   and 'clearStandOwnershipAfterDelete(user, stand, "withdraw")' in ls
+   and 'Osi.RequestDeleteTemporary temporary-delete stand=' in ls
+   and 'Osi.RemovePartyFollower temporary-delete stand=' in ls
+   and 'Withdraw temporary delete queued and ownership cleared' in ls
+   and 'killStandEntityForWithdraw' not in ls
+   and 'finalizeDeadStandEntity' not in ls
+   and 'queueStandDespawn' not in ls
+   and 'Osi.Die' not in ls
+   and 'Osi.RequestDelete ' not in ls
+   and 'Withdraw death initiated; ownership retained until unload completes' not in ls
+   and 'Manifest blocked: previous Stand is still owned and resolving death unload' not in ls,
+   'Withdraw must use the official temporary character delete path, not death events or RequestDelete.')
 ok('The Star has no generic fallback body path',
    'allowUserTemplateFallback' not in sd
    and 'summonTemplates' not in sd
@@ -547,59 +725,92 @@ ok('Runtime mirrors linked damage in both directions with recursion guard',
    and 'OnUserDamaged' in ls
    and 'DamageLinkGuard' in ls
    and 'StandSystem.OnUserDamaged(defender, source, damage)' in (root / 'ScriptExtender/Lua/StandFramework/SpellHandlers.lua').read_text())
-ok('The Star has fixed 30ft/9m close-range tether',
-   'tetherRange = 9.0' in sd
-   and 'allowTetherScaling = false' in sd
+ok('BaseStand and The Star have fixed 30ft/9m close-range tether',
+   'BaseStand' in sd
+   and 'TheStar' in sd
+   and 'tetherRange = 9.0' in base_stand_block
+   and sd.count('tetherRange = 9.0') >= 4
+   and 'allowTetherScaling = false' in base_stand_block
+   and sd.count('allowTetherScaling = false') >= 2
    and 'DEFAULT_CLOSE_RANGE_TETHER = 9.0' in ls
-   and 'enforceStandTether' in ls)
+   and 'enforceStandTether' in ls
+   and 'StandSystem.EnforceAllTethers' in ls
+   and 'Ext.Events.Tick:Subscribe' in ls
+   and 'server_tick' in ls)
 ok('Star Platinum root template uses dedicated humanoid body, not stock Specter',
-   'MapKey" type="FixedString" value="6f8d9ac1-1d13-4cb4-aa64-85c2e2bc07c1"' in spt
+   'MapKey" type="FixedString" value="f50e6a61-772e-45c9-bfd6-45e68d33a4c0"' in spt
    and 'ParentTemplateId" type="FixedString" value="12c0a711-1459-48e2-a50e-7b792eee0918"' in spt
-   and 'Stats" type="FixedString" value="STAND_STAR_PLATINUM_BODY"' in spt
+   and 'Stats" type="FixedString" value="STAND_STAR_PLATINUM_BODY_L3"' in spt
    and '066133a8-5dce-4636-8ba1-13efb1140c54' not in spt
    and 'h00010001g0000g0000g0000g00000000009A' in spt)
-ok('Base Stand root template uses dedicated generic stand body',
+ok('Base Stand root template uses dedicated unawakened stand body',
    'MapKey" type="FixedString" value="72b4f830-2f41-4f50-8f80-0f7cc1383d01"' in bst
    and 'Stats" type="FixedString" value="STAND_BASE_BODY"' in bst
    and 'h00010001g0000g0000g0000g00000000009B' in bst
    and 'h00010001g0000g0000g0000g00000000009B' in loc
    and 'Stand' in loc)
-ok('Merged root template source contains both concrete stand character templates',
+ok('Merged root template source contains BaseStand and Star Platinum concrete templates',
    'Name" type="LSString" value="STANDPROTOTYPE_BASE_STAND"' in mrt
    and 'MapKey" type="FixedString" value="72b4f830-2f41-4f50-8f80-0f7cc1383d01"' in mrt
    and 'Stats" type="FixedString" value="STAND_BASE_BODY"' in mrt
-   and 'Name" type="LSString" value="STANDPROTOTYPE_STAR_PLATINUM"' in mrt
-   and 'MapKey" type="FixedString" value="6f8d9ac1-1d13-4cb4-aa64-85c2e2bc07c1"' in mrt
-   and 'Stats" type="FixedString" value="STAND_STAR_PLATINUM_BODY"' in mrt)
+   and all(f'Name" type="LSString" value="STANDPROTOTYPE_STAR_PLATINUM_L{tier}"' in mrt for tier in [3, 5, 6, 10, 12])
+   and all(f'Stats" type="FixedString" value="STAND_STAR_PLATINUM_BODY_L{tier}"' in mrt for tier in [3, 5, 6, 10, 12]))
 ok('Star Platinum character stats are unarmed humanoid stand stats',
-   'new entry "STAND_STAR_PLATINUM_BODY"' in char_stats
+   all(f'new entry "STAND_STAR_PLATINUM_BODY_L{tier}"' in char_stats for tier in [3, 5, 6, 10, 12])
    and 'new entry "STAND_ENTITY_BODY_BASE"' in char_stats
    and 'using "STAND_ENTITY_BODY_BASE"' in char_stats
-   and char_stats.count('using "HalfOrc_Barbarian"') == 1
+   and 'using "_Summons"' in char_stats
+   and 'using "HalfOrc_Barbarian"' not in char_stats
    and 'STAND_ENTITY_COMBAT_BODY' in char_stats
    and 'UnarmedAttackAbility" "Strength"' in char_stats
    and 'ActionResources" "ActionPoint:1;BonusActionPoint:1;ReactionActionPoint:1;Movement:9"' in char_stats)
-def stats_entry_block(text: str, entry_name: str) -> str:
-    match = re.search(rf'new entry "{re.escape(entry_name)}"\n([\s\S]*?)(?=\nnew entry "|\Z)', text)
-    return match.group(1) if match else ''
-
-star_platinum_stat_block = stats_entry_block(char_stats, 'STAND_STAR_PLATINUM_BODY')
+ok('Stand character stats do not inherit class action kits',
+   'using "HalfOrc_Barbarian"' not in char_stats
+   and 'using "_Summons"' in char_stats,
+   'Stand bodies should not inherit player/NPC class hotbar actions.')
 base_stand_stat_block = stats_entry_block(char_stats, 'STAND_BASE_BODY')
+base_stand_actions = [
+    'Target_UnarmedAttack',
+    'Target_Stand_BasicStrike',
+    'Target_Stand_BasicBarrage',
+    'Shout_Stand_BasicGuard',
+]
 star_combat_actions = [
     'Target_Stand_Barrage',
-    'Target_Stand_Intercept',
+    'Shout_Stand_Intercept',
     'Target_Stand_StarFinger',
     'Target_Stand_Rush',
     'Target_Stand_RelentlessBarrage',
-    'Target_Stand_TimeStop',
+    'Shout_Stand_TimeStop',
 ]
-ok('Star Platinum character stats own requested combat actions',
-   star_platinum_stat_block != ''
-   and all(f'UnlockSpell({spell})' in star_platinum_stat_block for spell in star_combat_actions)
+ok('Base Stand character stats own generic baseline Stand actions',
+   base_stand_stat_block != ''
+   and all(f'UnlockSpell({spell})' in base_stand_stat_block for spell in base_stand_actions))
+ok('Base Stand character stats do not own Star Platinum-specific actions',
+   base_stand_stat_block != ''
    and all(f'UnlockSpell({spell})' not in base_stand_stat_block for spell in star_combat_actions))
+star_tier_actions = {
+    3: ['Target_UnarmedAttack', 'Target_Stand_Barrage', 'Shout_Stand_Intercept'],
+    5: ['Target_UnarmedAttack', 'Target_Stand_Barrage', 'Shout_Stand_Intercept', 'Target_Stand_StarFinger'],
+    6: ['Target_UnarmedAttack', 'Target_Stand_Barrage', 'Shout_Stand_Intercept', 'Target_Stand_StarFinger', 'Target_Stand_Rush'],
+    10: ['Target_UnarmedAttack', 'Target_Stand_Barrage', 'Shout_Stand_Intercept', 'Target_Stand_StarFinger', 'Target_Stand_Rush', 'Target_Stand_RelentlessBarrage'],
+    12: ['Target_UnarmedAttack'] + star_combat_actions,
+}
+ok('Star Platinum tier character stats own exact tier action sets',
+   all(
+       stats_entry_block(char_stats, f'STAND_STAR_PLATINUM_BODY_L{tier}') != ''
+       and all(f'UnlockSpell({spell})' in stats_entry_block(char_stats, f'STAND_STAR_PLATINUM_BODY_L{tier}') for spell in actions)
+       and all(f'UnlockSpell({spell})' not in stats_entry_block(char_stats, f'STAND_STAR_PLATINUM_BODY_L{tier}') for spell in star_combat_actions if spell not in actions)
+       for tier, actions in star_tier_actions.items()
+   ))
+ok('Star Platinum tier character stats do not own generic BaseStand-only actions',
+   all(
+       all(f'UnlockSpell({spell})' not in stats_entry_block(char_stats, f'STAND_STAR_PLATINUM_BODY_L{tier}') for spell in base_stand_actions if spell != 'Target_UnarmedAttack')
+       for tier in star_tier_actions
+   ))
 ok('Star Platinum combat actions are not only Lua standActions',
    all(action in sd for action in star_combat_actions)
-   and all(f'UnlockSpell({action})' in star_platinum_stat_block for action in star_combat_actions))
+   and all(f'UnlockSpell({action})' in stats_entry_block(char_stats, 'STAND_STAR_PLATINUM_BODY_L12') for action in star_combat_actions))
 
 ok('Script Extender config exists', se_config.exists(), str(se_config))
 cfg_ok = False

@@ -10,7 +10,7 @@
   <content contentuid="h00010001g0000g0000g0000g000000000003" version="1">Withdraw Stand</content>
   <content contentuid="h00010001g0000g0000g0000g000000000004" version="1">Recall your Stand to your body and cut off the exposed link before it breaks you.</content>
   <content contentuid="h00010001g0000g0000g0000g000000000005" version="1">ORA Barrage</content>
-  <content contentuid="h00010001g0000g0000g0000g000000000006" version="1">Your repeat pressure strike. Rapid close-range hits that keep enemy tempo under control.</content>
+  <content contentuid="h00010001g0000g0000g0000g000000000006" version="1">Your repeat pressure strike. Three rapid close-range hits resolve off one fast punch animation.</content>
   <content contentuid="h00010001g0000g0000g0000g000000000007" version="1">Heavy Stand Blow</content>
   <content contentuid="h00010001g0000g0000g0000g000000000008" version="1">Your early panic button. Commit everything into one brutal hit that can knock the target down.</content>
   <content contentuid="h00010001g0000g0000g0000g000000000009" version="1">Stand Intercept</content>
@@ -34,7 +34,7 @@
   <content contentuid="h00010001g0000g0000g0000g000000000028" version="1">Combat Reading</content>
   <content contentuid="h00010001g0000g0000g0000g000000000029" version="1">Spend Spirit to read intent and seize tempo before the next exchange.</content>
   <content contentuid="h00010001g0000g0000g0000g00000000002A" version="1">Relentless Barrage</content>
-  <content contentuid="h00010001g0000g0000g0000g00000000002B" version="1">A sustained ORA rush that overwhelms any target trapped in your range.</content>
+  <content contentuid="h00010001g0000g0000g0000g00000000002B" version="1">A relentless ORA rush that drives the target back with sustained close-range pressure.</content>
   <content contentuid="h00010001g0000g0000g0000g00000000002C" version="1">Time Stop</content>
   <content contentuid="h00010001g0000g0000g0000g00000000002D" version="1">Force the world to crawl while your Stand moves at impossible speed.</content>
   <content contentuid="h00010001g0000g0000g0000g00000000002E" version="1">Reposition Stand</content>
@@ -157,4 +157,10 @@
   <content contentuid="h00010001g0000g0000g0000g0000000000B7" version="1">A compact starter supply pack for a newly awakened Stand User.</content>
   <content contentuid="h00010001g0000g0000g0000g0000000000B8" version="1">Stand Combat Body</content>
   <content contentuid="h00010001g0000g0000g0000g0000000000B9" version="1">Internal passive marking a manifested Stand entity controlled by the Stand User framework.</content>
+  <content contentuid="h00010001g0000g0000g0000g0000000000BA" version="1">Stand Strike</content>
+  <content contentuid="h00010001g0000g0000g0000g0000000000BB" version="1">A direct unawakened Stand strike.</content>
+  <content contentuid="h00010001g0000g0000g0000g0000000000BC" version="1">Stand Barrage</content>
+  <content contentuid="h00010001g0000g0000g0000g0000000000BD" version="1">A short sequence of generic Stand blows.</content>
+  <content contentuid="h00010001g0000g0000g0000g0000000000BE" version="1">Stand Guard</content>
+  <content contentuid="h00010001g0000g0000g0000g0000000000BF" version="1">Brace with your unawakened Stand to blunt the next incoming hit.</content>
 </contentList>

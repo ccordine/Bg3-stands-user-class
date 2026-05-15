@@ -11,8 +11,8 @@ This file is a concrete mapping for BG3 Toolkit class/subclass records that matc
 - Core Passive at Level 1: `STAND_USER_BASE_CLASS_PASSIVE`
 - Class Equipment: `EQP_CC_StandUser`
 - Core spells at Level 1:
-  - `Target_Stand_Manifest`
-  - `Target_Stand_Withdraw`
+  - `Shout_Stand_Manifest`
+  - `Shout_Stand_Withdraw`
 
 ## Subclass Group (Arcana)
 Create subclass choice at class level 3.
@@ -30,7 +30,7 @@ Create subclass choice at class level 3.
 - `TheStar.summonTemplate` must point to the concrete Star Platinum root template.
 - Do not add `fallbackSummonTemplate` or stock-body fallback paths.
 - Star Platinum combat actions belong on the concrete character/stat entry, not on player spell lists.
-- Lua may repair missing Stand actions with logged `AddSpell`, but that is not the primary spellbook source.
+- Lua must not repair missing Stand actions with `AddSpell`; missing Stand actions are a data/config failure.
 
 ### Future Reserved
 - `StandUser_TheWorld` -> `STAND_SUBCLASS_THE_WORLD`
